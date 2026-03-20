@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Buzzer — Host</title>
+  <link rel="stylesheet" href="/css/style.css" />
+</head>
+<body class="host-body">
+  <div class="host-container">
+    <!-- Header -->
+    <header class="host-header">
+      <h1>🎯 Buzzer</h1>
+      <div class="connection-info">
+        <div class="qr-section">
+          <img id="qr-code" alt="QR Code" />
+        </div>
+        <div class="join-details">
+          <p class="join-url" id="join-url"></p>
+          <p class="room-code">Room: <span id="room-code">----</span></p>
+        </div>
+      </div>
+    </header>
+
+    <!-- Controls -->
+    <div class="host-controls">
+      <button id="btn-reset" class="btn btn-reset">Reset Round</button>
+      <div class="auto-reset-group">
+        <label class="toggle-label">
+          <input type="checkbox" id="auto-reset-toggle" />
+          <span>Auto-reset</span>
+        </label>
+        <input
+          type="number"
+          id="auto-reset-delay"
+          min="1"
+          max="60"
+          value="5"
+          class="delay-input"
+          disabled
+        />
+        <span class="delay-unit">seconds</span>
+      </div>
+    </div>
+
+    <!-- Buzz results -->
+    <section class="buzz-results" id="buzz-results">
+      <div class="waiting-message" id="waiting-message">
+        Waiting for buzzes...
+      </div>
+    </section>
+
+    <!-- Players -->
+    <section class="players-section">
+      <h2>Players <span id="player-count" class="player-count">0</span></h2>
+      <div class="player-list" id="player-list">
+        <p class="no-players">No players connected yet</p>
+      </div>
+    </section>
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="/js/host.js"></script>
+</body>
+</html>

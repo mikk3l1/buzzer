@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+  <title>Buzzer</title>
+  <link rel="stylesheet" href="/css/style.css" />
+</head>
+<body class="player-body">
+
+  <!-- Join screen -->
+  <div class="player-join" id="join-screen">
+    <h1>🎯 Buzzer</h1>
+    <form id="join-form">
+      <input
+        type="text"
+        id="name-input"
+        placeholder="Your name"
+        maxlength="30"
+        autocomplete="off"
+        required
+      />
+      <button type="submit" class="btn btn-join">Join</button>
+    </form>
+    <p class="error-msg" id="error-msg"></p>
+  </div>
+
+  <!-- Buzzer screen -->
+  <div class="player-buzzer hidden" id="buzzer-screen">
+    <p class="player-name" id="display-name"></p>
+    <button id="buzz-btn" class="buzz-button">BUZZ!</button>
+    <p class="buzz-status" id="buzz-status"></p>
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="/js/player.js"></script>
+</body>
+</html>
