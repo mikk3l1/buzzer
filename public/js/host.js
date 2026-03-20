@@ -1,5 +1,14 @@
 const socket = io();
 
+// --- Theme ---
+function applyTheme(theme) {
+  if (theme && theme !== "default") {
+    document.documentElement.setAttribute("data-theme", theme);
+  } else {
+    document.documentElement.removeAttribute("data-theme");
+  }
+}
+
 // --- DOM refs ---
 const qrImg = document.getElementById("qr-code");
 const joinUrlEl = document.getElementById("join-url");
@@ -11,6 +20,7 @@ const buzzResultsEl = document.getElementById("buzz-results");
 const waitingMessage = document.getElementById("waiting-message");
 const playerListEl = document.getElementById("player-list");
 const playerCountEl = document.getElementById("player-count");
+const themeSelect = document.getElementById("theme-select");
 
 // --- Buzzer sound (generated via Web Audio API) ---
 let audioCtx;
@@ -58,6 +68,10 @@ socket.on("host-info", (info) => {
     autoResetToggle.checked = info.autoReset.enabled;
     autoResetDelay.value = Math.round(info.autoReset.delayMs / 1000);
     autoResetDelay.disabled = !info.autoReset.enabled;
+  }
+  if (info.theme) {
+    themeSelect.value = info.theme;
+    applyTheme(info.theme);
   }
   renderPlayers(info.players);
   renderBuzzResults(info.buzzResults);
@@ -141,6 +155,16 @@ socket.on("auto-reset-update", (config) => {
   autoResetToggle.checked = config.enabled;
   autoResetDelay.value = Math.round(config.delayMs / 1000);
   autoResetDelay.disabled = !config.enabled;
+});
+
+// --- Theme selection ---
+themeSelect.addEventListener("change", () => {
+  socket.emit("theme-change", themeSelect.value);
+});
+
+socket.on("theme-update", (theme) => {
+  themeSelect.value = theme;
+  applyTheme(theme);
 });
 
 // --- Utility ---

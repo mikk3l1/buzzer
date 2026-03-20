@@ -1,5 +1,14 @@
 const socket = io();
 
+// --- Theme ---
+function applyTheme(theme) {
+  if (theme && theme !== "default") {
+    document.documentElement.setAttribute("data-theme", theme);
+  } else {
+    document.documentElement.removeAttribute("data-theme");
+  }
+}
+
 // --- DOM refs ---
 const joinScreen = document.getElementById("join-screen");
 const buzzerScreen = document.getElementById("buzzer-screen");
@@ -53,6 +62,11 @@ socket.on("join-ok", (data) => {
   displayName.textContent = data.name;
   hasBuzzed = false;
   setBuzzerActive(true);
+  if (data.theme) applyTheme(data.theme);
+});
+
+socket.on("theme-update", (theme) => {
+  applyTheme(theme);
 });
 
 socket.on("join-error", (msg) => {

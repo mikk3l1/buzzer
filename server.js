@@ -17,6 +17,7 @@ let buzzOrder = []; // [{ socketId, name, timestamp }]
 let roundActive = true;
 let autoReset = { enabled: false, delayMs: 5000 };
 let autoResetTimer = null;
+let currentTheme = "default";
 
 // --- Room code ---
 function generateRoomCode() {
@@ -110,6 +111,7 @@ io.on("connection", async (socket) => {
       buzzResults: getBuzzResults(),
       roundActive,
       autoReset,
+      theme: currentTheme,
     });
   });
 
@@ -122,7 +124,7 @@ io.on("connection", async (socket) => {
     }
 
     players.set(socket.id, { name, joinedAt: Date.now() });
-    socket.emit("join-ok", { name });
+    socket.emit("join-ok", { name, theme: currentTheme });
 
     io.to("host-room").emit("player-list", getPlayerList());
 
@@ -171,6 +173,14 @@ io.on("connection", async (socket) => {
     roundActive = true;
     io.emit("round-reset");
     io.to("host-room").emit("buzz-results", getBuzzResults());
+  });
+
+  // Host changes theme
+  socket.on("theme-change", (theme) => {
+    const allowed = ["default", "easter", "neon", "ocean"];
+    if (!allowed.includes(theme)) return;
+    currentTheme = theme;
+    io.emit("theme-update", currentTheme);
   });
 
   // Host toggles auto-reset

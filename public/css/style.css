@@ -63,6 +63,7 @@ html, body {
 .host-header {
   text-align: center;
   margin-bottom: 24px;
+  position: relative;
 }
 
 .host-header h1 {
@@ -403,4 +404,241 @@ html, body {
   font-weight: 600;
   min-height: 2em;
   text-align: center;
+}
+
+/* =========================================
+   THEME SELECTOR
+   ========================================= */
+.theme-selector {
+  position: absolute;
+  top: 0;
+  right: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.theme-selector label {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.theme-selector select {
+  padding: 6px 12px;
+  background: var(--surface);
+  border: 1px solid var(--surface-light);
+  border-radius: 8px;
+  color: var(--text);
+  font-size: 0.9rem;
+  cursor: pointer;
+  outline: none;
+}
+
+.theme-selector select:focus {
+  border-color: var(--primary);
+}
+
+/* =========================================
+   THEMES
+   ========================================= */
+
+/* Easter — pastel spring */
+[data-theme="easter"] {
+  --bg: #fdf6f0;
+  --surface: #f0e6f6;
+  --surface-light: #e8d5f5;
+  --primary: #e88bc4;
+  --primary-glow: rgba(232, 139, 196, 0.35);
+  --accent: #f5c842;
+  --text: #3d2c4e;
+  --text-muted: #8a7399;
+  --success: #7dcea0;
+}
+
+/* QR code needs a dark background on light themes */
+[data-theme="easter"] .qr-section img {
+  background: #3d2c4e;
+  padding: 8px;
+  border-radius: 12px;
+}
+
+/* Easter floating decorations */
+[data-theme="easter"] body::before {
+  content: "🐣";
+  position: fixed;
+  top: 12px;
+  left: 18px;
+  font-size: 2rem;
+  animation: easter-bounce 2s ease-in-out infinite;
+  z-index: 10;
+  pointer-events: none;
+}
+
+[data-theme="easter"] body::after {
+  content: "🐰";
+  position: fixed;
+  bottom: 18px;
+  right: 18px;
+  font-size: 2.5rem;
+  animation: easter-bounce 2.5s ease-in-out infinite 0.5s;
+  z-index: 10;
+  pointer-events: none;
+}
+
+[data-theme="easter"] .host-container::before {
+  content: "🥚 🌷 🐣 🥚 🌸 🐰 🥚 🌷 🐣 🥚";
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  text-align: center;
+  font-size: 1.5rem;
+  letter-spacing: 12px;
+  padding: 10px;
+  pointer-events: none;
+  opacity: 0.5;
+  z-index: 10;
+}
+
+[data-theme="easter"] .player-buzzer::before {
+  content: "🐣";
+  position: fixed;
+  top: 20px;
+  left: 20px;
+  font-size: 2rem;
+  animation: easter-bounce 2s ease-in-out infinite;
+  pointer-events: none;
+}
+
+[data-theme="easter"] .player-buzzer::after {
+  content: "🐰";
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  font-size: 2rem;
+  animation: easter-bounce 2.5s ease-in-out infinite 0.3s;
+  pointer-events: none;
+}
+
+[data-theme="easter"] .player-join::before {
+  content: "🐣";
+  position: fixed;
+  top: 20px;
+  left: 20px;
+  font-size: 2rem;
+  animation: easter-bounce 2s ease-in-out infinite;
+  pointer-events: none;
+}
+
+[data-theme="easter"] .player-join::after {
+  content: "🐰";
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  font-size: 2rem;
+  animation: easter-bounce 2.5s ease-in-out infinite 0.3s;
+  pointer-events: none;
+}
+
+@keyframes easter-bounce {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  25% { transform: translateY(-10px) rotate(5deg); }
+  75% { transform: translateY(-5px) rotate(-5deg); }
+}
+
+@keyframes easter-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-15px); }
+}
+
+[data-theme="easter"] .buzz-button {
+  background: radial-gradient(circle at 35% 35%, #f5a3d3, #e88bc4 60%, #c964a8);
+}
+
+[data-theme="easter"] .buzz-button.buzzed {
+  background: radial-gradient(circle at 35% 35%, #d5c8dc, #b8a8c2 60%, #998aa6);
+  box-shadow:
+    0 4px 10px rgba(0,0,0,0.1),
+    0 0 0 6px var(--surface-light),
+    0 0 0 8px #b8a8c2;
+  color: #8a7399;
+}
+
+[data-theme="easter"] .buzz-button.winner {
+  background: radial-gradient(circle at 35% 35%, #ffe88a, #f5c842 60%, #d4a420);
+  box-shadow:
+    0 8px 40px rgba(245, 200, 66, 0.4),
+    0 0 0 6px var(--surface-light),
+    0 0 0 8px var(--accent);
+  color: #3d2c4e;
+}
+
+/* Neon — electric dark */
+[data-theme="neon"] {
+  --bg: #0a0a0a;
+  --surface: #141414;
+  --surface-light: #222222;
+  --primary: #ff00ff;
+  --primary-glow: rgba(255, 0, 255, 0.4);
+  --accent: #39ff14;
+  --text: #f0f0f0;
+  --text-muted: #777777;
+  --success: #39ff14;
+}
+
+[data-theme="neon"] .buzz-button {
+  background: radial-gradient(circle at 35% 35%, #ff66ff, #ff00ff 60%, #aa00aa);
+}
+
+[data-theme="neon"] .buzz-button.buzzed {
+  background: radial-gradient(circle at 35% 35%, #444, #282828 60%, #1a1a1a);
+  box-shadow:
+    0 4px 10px rgba(0,0,0,0.5),
+    0 0 0 6px var(--surface-light),
+    0 0 0 8px #444;
+  color: #555;
+}
+
+[data-theme="neon"] .buzz-button.winner {
+  background: radial-gradient(circle at 35% 35%, #80ff60, #39ff14 60%, #1abf00);
+  box-shadow:
+    0 8px 40px rgba(57, 255, 20, 0.5),
+    0 0 0 6px var(--surface-light),
+    0 0 0 8px var(--accent);
+  color: #0a0a0a;
+}
+
+/* Ocean — deep sea */
+[data-theme="ocean"] {
+  --bg: #0b1628;
+  --surface: #122240;
+  --surface-light: #1a3358;
+  --primary: #ff6b6b;
+  --primary-glow: rgba(255, 107, 107, 0.35);
+  --accent: #ffd166;
+  --text: #e0e8f0;
+  --text-muted: #6b8aad;
+  --success: #06d6a0;
+}
+
+[data-theme="ocean"] .buzz-button {
+  background: radial-gradient(circle at 35% 35%, #ff8a8a, #ff6b6b 60%, #cc4444);
+}
+
+[data-theme="ocean"] .buzz-button.buzzed {
+  background: radial-gradient(circle at 35% 35%, #2a4060, #1a3050 60%, #0f2040);
+  box-shadow:
+    0 4px 10px rgba(0,0,0,0.3),
+    0 0 0 6px var(--surface-light),
+    0 0 0 8px #2a4060;
+  color: #4a6a8a;
+}
+
+[data-theme="ocean"] .buzz-button.winner {
+  background: radial-gradient(circle at 35% 35%, #ffe088, #ffd166 60%, #d4a830);
+  box-shadow:
+    0 8px 40px rgba(255, 209, 102, 0.4),
+    0 0 0 6px var(--surface-light),
+    0 0 0 8px var(--accent);
+  color: #0b1628;
 }
