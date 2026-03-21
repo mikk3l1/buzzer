@@ -158,7 +158,6 @@ html, body {
   font-size: 1.2rem;
   border-left: 4px solid var(--surface-light);
   transition: transform 0.2s, border-color 0.2s;
-  animation: slideIn 0.3s ease-out;
 }
 
 .buzz-card.winner {
