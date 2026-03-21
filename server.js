@@ -126,6 +126,17 @@ function getPlayerScore(sessionToken) {
   return scores.get(sessionToken)?.score ?? 0;
 }
 
+function normalizeChanceBet(bet) {
+  if (typeof bet === "number") {
+    return { points: bet, answer: "" };
+  }
+
+  return {
+    points: Number(bet?.points) || 0,
+    answer: String(bet?.answer || "").trim(),
+  };
+}
+
 function emitPlayerScore(sessionToken) {
   const session = sessions.get(sessionToken);
   if (!session || !session.socketId) return;
@@ -143,10 +154,9 @@ function emitAllPlayerScores() {
 
 function getChanceBetsForHost() {
   return [...chanceBets.entries()].map(([sessionToken, bet]) => ({
+    ...normalizeChanceBet(bet),
     sessionToken,
     name: scores.get(sessionToken)?.name || sessions.get(sessionToken)?.name || "Unknown",
-    points: bet.points,
-    answer: bet.answer,
   }));
 }
 
@@ -241,7 +251,7 @@ io.on("connection", async (socket) => {
       theme: currentTheme,
       score: getPlayerScore(token),
       chanceModeActive,
-      chanceBet: chanceBets.get(token) || null,
+      chanceBet: chanceBets.has(token) ? normalizeChanceBet(chanceBets.get(token)) : null,
       hasBuzzed: alreadyBuzzed,
       position: alreadyBuzzed
         ? buzzOrder.findIndex((b) => b.sessionToken === token) + 1
@@ -334,7 +344,9 @@ io.on("connection", async (socket) => {
       scoreEntry.score = Math.max(0, scoreEntry.score - points);
     }
 
-    const existingBet = chanceBets.get(sessionToken);
+    const existingBet = chanceBets.has(sessionToken)
+      ? normalizeChanceBet(chanceBets.get(sessionToken))
+      : null;
     if (existingBet && existingBet.points > scoreEntry.score) {
       if (scoreEntry.score < 1) {
         chanceBets.delete(sessionToken);
@@ -414,7 +426,8 @@ io.on("connection", async (socket) => {
       return;
     }
 
-    const bet = chanceBets.get(sessionToken);
+    const storedBet = chanceBets.get(sessionToken);
+    const bet = storedBet ? normalizeChanceBet(storedBet) : null;
     if (!bet || bet.points < 1) {
       resolveAck(callback, { ok: false, error: "No active chance bet found for that player" });
       return;

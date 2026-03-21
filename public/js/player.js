@@ -27,6 +27,7 @@ const chanceBetStatus = document.getElementById("chance-bet-status");
 let hasBuzzed = false;
 let currentScore = 0;
 let chanceModeActive = false;
+let lastSubmittedChanceBet = null;
 
 // --- Buzzer sound (Web Audio API) ---
 let audioCtx;
@@ -82,6 +83,7 @@ socket.on("join-ok", (data) => {
   displayName.textContent = data.name;
   setScore(data.score || 0);
   setChanceMode(Boolean(data.chanceModeActive));
+  lastSubmittedChanceBet = null;
   chanceAnswerInput.value = "";
   hasBuzzed = false;
   setBuzzerActive(true);
@@ -97,9 +99,15 @@ socket.on("rejoin-ok", (data) => {
   setScore(data.score || 0);
   setChanceMode(Boolean(data.chanceModeActive));
   if (data.chanceBet) {
+    chanceBetInput.value = String(data.chanceBet.points || 1);
     chanceAnswerInput.value = data.chanceBet.answer || "";
+    lastSubmittedChanceBet = {
+      points: Number(data.chanceBet.points || 0),
+      answer: String(data.chanceBet.answer || ""),
+    };
     setChanceBetStatus(`Submitted: ${data.chanceBet.points} pts`);
   } else {
+    lastSubmittedChanceBet = null;
     chanceAnswerInput.value = "";
     setChanceBetStatus("");
   }
@@ -142,6 +150,10 @@ socket.on("chance-mode-update", (data) => {
 
 socket.on("chance-bet-ok", (data) => {
   chanceAnswerInput.value = data.answer || chanceAnswerInput.value;
+  lastSubmittedChanceBet = {
+    points: Number(data.points || 0),
+    answer: String(data.answer || chanceAnswerInput.value || "").trim(),
+  };
   setChanceBetStatus(`Submitted: ${data.points} pts`);
 });
 
@@ -152,6 +164,7 @@ socket.on("chance-bet-error", (msg) => {
 socket.on("chance-bet-resolved", (data) => {
   const result = data?.result === "win" ? "win" : "lose";
   const points = Number(data?.points || 0);
+  lastSubmittedChanceBet = null;
   chanceBetInput.value = currentScore > 0 ? "1" : "";
   chanceAnswerInput.value = "";
   setChanceBetStatus(
@@ -217,25 +230,11 @@ socket.on("round-reset", () => {
 
 chanceBetForm.addEventListener("submit", (e) => {
   e.preventDefault();
-  if (!chanceModeActive) return;
-
-  const points = Number(chanceBetInput.value);
-  const answer = chanceAnswerInput.value.trim();
-  if (!Number.isInteger(points)) {
-    setChanceBetStatus("Bet must be a whole number", true);
-    return;
-  }
-  if (points < 1 || points > currentScore) {
-    setChanceBetStatus(`Bet must be between 1 and ${currentScore}`, true);
-    return;
-  }
-  if (!answer) {
-    setChanceBetStatus("Answer is required", true);
-    return;
-  }
-
-  socket.emit("chance-bet", { points, answer });
+  submitChanceBet();
 });
+
+chanceBetInput.addEventListener("input", handleChanceBetDraftChange);
+chanceAnswerInput.addEventListener("input", handleChanceBetDraftChange);
 
 // --- Helpers ---
 function setBuzzerActive(active) {
@@ -271,6 +270,11 @@ function setChanceMode(active) {
   chanceBetForm.classList.toggle("hidden", !active);
   chanceBetInput.disabled = !active || currentScore < 1;
   chanceAnswerInput.disabled = !active;
+  buzzBtn.classList.toggle("hidden", active);
+
+  if (!active) {
+    lastSubmittedChanceBet = null;
+  }
 
   const submitButton = chanceBetForm.querySelector("button[type='submit']");
   if (submitButton) {
@@ -289,6 +293,52 @@ function setChanceMode(active) {
 function setChanceBetStatus(message, isError = false) {
   chanceBetStatus.textContent = message;
   chanceBetStatus.classList.toggle("error", Boolean(isError && message));
+}
+
+function getChanceBetDraft() {
+  return {
+    points: Number(chanceBetInput.value),
+    answer: chanceAnswerInput.value.trim(),
+  };
+}
+
+function isChanceBetDraftValid(draft) {
+  return Number.isInteger(draft.points) && draft.points >= 1 && draft.points <= currentScore && Boolean(draft.answer);
+}
+
+function submitChanceBet() {
+  if (!chanceModeActive) return;
+
+  const draft = getChanceBetDraft();
+  if (!Number.isInteger(draft.points)) {
+    setChanceBetStatus("Bet must be a whole number", true);
+    return;
+  }
+  if (draft.points < 1 || draft.points > currentScore) {
+    setChanceBetStatus(`Bet must be between 1 and ${currentScore}`, true);
+    return;
+  }
+  if (!draft.answer) {
+    setChanceBetStatus("Answer is required", true);
+    return;
+  }
+
+  socket.emit("chance-bet", draft);
+}
+
+function handleChanceBetDraftChange() {
+  if (!chanceModeActive || !lastSubmittedChanceBet) return;
+
+  const draft = getChanceBetDraft();
+  const hasChanges = draft.points !== lastSubmittedChanceBet.points || draft.answer !== lastSubmittedChanceBet.answer;
+  if (!hasChanges) return;
+
+  if (!isChanceBetDraftValid(draft)) {
+    setChanceBetStatus("Update the bet and answer, then submit again", true);
+    return;
+  }
+
+  setChanceBetStatus("Changes not submitted yet. Submit again to update the host view.");
 }
 
 // --- Connection handling ---

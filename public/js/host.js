@@ -256,7 +256,7 @@ function renderChanceBets(bets) {
         <div class="chance-bet-row">
           <div class="chance-bet-info">
             <span class="chance-bet-name">${escapeHtml(bet.name)}</span>
-            <span class="chance-bet-answer">${escapeHtml(bet.answer || "")}</span>
+            <span class="chance-bet-answer">Answer: ${escapeHtml(bet.answer || "(no answer submitted)")}</span>
           </div>
           <span class="chance-bet-points">${Number(bet.points || 0)} pts</span>
           <div class="chance-bet-actions">
