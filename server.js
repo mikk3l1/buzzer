@@ -16,7 +16,7 @@ const PORT = process.env.PORT || 3000;
 const players = new Map(); // socketId -> { name, sessionToken, joinedAt }
 const sessions = new Map(); // sessionToken -> { name, socketId, disconnectTimer }
 const scores = new Map(); // sessionToken -> { name, score, createdAt }
-const chanceBets = new Map(); // sessionToken -> points
+const chanceBets = new Map(); // sessionToken -> { points, answer }
 let buzzOrder = []; // [{ sessionToken, name, timestamp }]
 let roundActive = true;
 let currentTheme = "default";
@@ -142,16 +142,23 @@ function emitAllPlayerScores() {
 }
 
 function getChanceBetsForHost() {
-  return [...chanceBets.entries()].map(([sessionToken, points]) => ({
+  return [...chanceBets.entries()].map(([sessionToken, bet]) => ({
     sessionToken,
     name: scores.get(sessionToken)?.name || sessions.get(sessionToken)?.name || "Unknown",
-    points,
+    points: bet.points,
+    answer: bet.answer,
   }));
 }
 
 function emitChanceMode() {
   io.emit("chance-mode-update", { active: chanceModeActive });
   io.to("host-room").emit("chance-bets-update", getChanceBetsForHost());
+}
+
+function resolveAck(callback, payload) {
+  if (typeof callback === "function") {
+    callback(payload);
+  }
 }
 
 function removeSession(sessionToken) {
@@ -170,8 +177,11 @@ function removeSession(sessionToken) {
 
 // --- Socket.IO ---
 io.on("connection", async (socket) => {
+  socket.data.isHost = false;
+
   // Host connects
   socket.on("host-join", async () => {
+    socket.data.isHost = true;
     socket.join("host-room");
 
     const localIP = getLocalIP();
@@ -304,7 +314,7 @@ io.on("connection", async (socket) => {
 
   // Host applies score to a buzzed player
   socket.on("apply-score", (data) => {
-    if (!socket.rooms.has("host-room")) return;
+    if (!socket.data.isHost) return;
 
     const sessionToken = String(data?.sessionToken || "");
     const points = Number(data?.points);
@@ -325,11 +335,14 @@ io.on("connection", async (socket) => {
     }
 
     const existingBet = chanceBets.get(sessionToken);
-    if (existingBet && existingBet > scoreEntry.score) {
+    if (existingBet && existingBet.points > scoreEntry.score) {
       if (scoreEntry.score < 1) {
         chanceBets.delete(sessionToken);
       } else {
-        chanceBets.set(sessionToken, scoreEntry.score);
+        chanceBets.set(sessionToken, {
+          ...existingBet,
+          points: scoreEntry.score,
+        });
       }
     }
 
@@ -341,7 +354,7 @@ io.on("connection", async (socket) => {
 
   // Host toggles chance mode for all players
   socket.on("set-chance-mode", (data) => {
-    if (!socket.rooms.has("host-room")) return;
+    if (!socket.data.isHost) return;
 
     const active = Boolean(data?.active);
     chanceModeActive = active;
@@ -362,6 +375,7 @@ io.on("connection", async (socket) => {
     }
 
     const points = Number(data?.points);
+    const answer = String(data?.answer || "").trim().slice(0, 500);
     const score = getPlayerScore(player.sessionToken);
 
     if (!Number.isInteger(points)) {
@@ -372,10 +386,70 @@ io.on("connection", async (socket) => {
       socket.emit("chance-bet-error", `Bet must be between 1 and ${score}`);
       return;
     }
+    if (!answer) {
+      socket.emit("chance-bet-error", "Answer is required");
+      return;
+    }
 
-    chanceBets.set(player.sessionToken, points);
-    socket.emit("chance-bet-ok", { points });
+    chanceBets.set(player.sessionToken, { points, answer });
+    socket.emit("chance-bet-ok", { points, answer });
     io.to("host-room").emit("chance-bets-update", getChanceBetsForHost());
+  });
+
+  // Host resolves a submitted chance bet in one click
+  socket.on("apply-chance-result", (data, callback) => {
+    if (!socket.data.isHost) {
+      resolveAck(callback, { ok: false, error: "Only host can resolve chance bets" });
+      return;
+    }
+
+    const sessionToken = String(data?.sessionToken || "");
+    const result = String(data?.result || "");
+    if (!sessionToken) {
+      resolveAck(callback, { ok: false, error: "Missing player token" });
+      return;
+    }
+    if (result !== "win" && result !== "lose") {
+      resolveAck(callback, { ok: false, error: "Invalid chance result" });
+      return;
+    }
+
+    const bet = chanceBets.get(sessionToken);
+    if (!bet || bet.points < 1) {
+      resolveAck(callback, { ok: false, error: "No active chance bet found for that player" });
+      return;
+    }
+
+    const playerName = scores.get(sessionToken)?.name || sessions.get(sessionToken)?.name || "Unknown";
+    const scoreEntry = ensureScoreEntry(sessionToken, playerName);
+
+    if (result === "win") {
+      scoreEntry.score += bet.points;
+    } else {
+      scoreEntry.score = Math.max(0, scoreEntry.score - bet.points);
+    }
+
+    chanceBets.delete(sessionToken);
+    emitLeaderboard();
+    emitPlayerScore(sessionToken);
+    const session = sessions.get(sessionToken);
+    if (session?.socketId) {
+      io.to(session.socketId).emit("chance-bet-resolved", { result, points: bet.points });
+    }
+    const buzzResults = getBuzzResults();
+    const chanceBetsForHost = getChanceBetsForHost();
+    const leaderboard = getLeaderboard();
+    io.to("host-room").emit("buzz-results", buzzResults);
+    io.to("host-room").emit("chance-bets-update", chanceBetsForHost);
+    resolveAck(callback, {
+      ok: true,
+      result,
+      sessionToken,
+      points: bet.points,
+      buzzResults,
+      chanceBets: chanceBetsForHost,
+      leaderboard,
+    });
   });
 
   // Host resets round
@@ -391,7 +465,7 @@ io.on("connection", async (socket) => {
 
   // Host resets persistent scores/leaderboard
   socket.on("reset-scores", () => {
-    if (!socket.rooms.has("host-room")) return;
+    if (!socket.data.isHost) return;
 
     scores.clear();
     for (const [token, session] of sessions) {

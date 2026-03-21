@@ -28,6 +28,7 @@ const chanceBetsListEl = document.getElementById("chance-bets-list");
 const scoreSelection = new Map();
 let latestBuzzResults = [];
 let chanceModeActive = false;
+let latestChanceBets = [];
 
 // --- Buzzer sound (generated via Web Audio API) ---
 let audioCtx;
@@ -62,7 +63,9 @@ function playBuzzSound() {
 }
 
 // --- Join as host ---
-socket.emit("host-join");
+socket.on("connect", () => {
+  socket.emit("host-join");
+});
 
 socket.on("host-info", (info) => {
   roomCodeEl.textContent = info.roomCode;
@@ -239,6 +242,8 @@ function setChanceMode(active) {
 }
 
 function renderChanceBets(bets) {
+  latestChanceBets = bets;
+
   if (!bets || bets.length === 0) {
     chanceBetsListEl.innerHTML = '<p class="no-players">No bets yet</p>';
     return;
@@ -249,13 +254,62 @@ function renderChanceBets(bets) {
     .map(
       (bet) => `
         <div class="chance-bet-row">
-          <span class="chance-bet-name">${escapeHtml(bet.name)}</span>
+          <div class="chance-bet-info">
+            <span class="chance-bet-name">${escapeHtml(bet.name)}</span>
+            <span class="chance-bet-answer">${escapeHtml(bet.answer || "")}</span>
+          </div>
           <span class="chance-bet-points">${Number(bet.points || 0)} pts</span>
+          <div class="chance-bet-actions">
+            <button class="chance-bet-action win" data-action="chance-result" data-token="${bet.sessionToken}" data-result="win">Win Bet</button>
+            <button class="chance-bet-action lose" data-action="chance-result" data-token="${bet.sessionToken}" data-result="lose">Lose Bet</button>
+          </div>
         </div>
       `
     )
     .join("");
 }
+
+chanceBetsListEl.addEventListener("click", (event) => {
+  const target = event.target instanceof Element ? event.target : null;
+  if (!target) return;
+
+  const button = target.closest("button[data-action='chance-result']");
+  if (!button) return;
+
+  const sessionToken = button.dataset.token;
+  const result = button.dataset.result;
+  if (!sessionToken) return;
+  if (result !== "win" && result !== "lose") return;
+
+  const row = button.closest(".chance-bet-row");
+  const playerName = row?.querySelector(".chance-bet-name")?.textContent || "player";
+  const pointsText = row?.querySelector(".chance-bet-points")?.textContent || "this bet";
+  const actionText = result === "win" ? "Win Bet" : "Lose Bet";
+
+  const confirmed = window.confirm(`Apply \"${actionText}\" for ${playerName} (${pointsText})?`);
+  if (!confirmed) return;
+
+  socket.emit("apply-chance-result", { sessionToken, result }, (response) => {
+    if (!response?.ok) {
+      window.alert(response?.error || "Unable to resolve chance bet");
+      return;
+    }
+
+    if (Array.isArray(response.chanceBets)) {
+      renderChanceBets(response.chanceBets);
+    } else {
+      renderChanceBets(latestChanceBets.filter((bet) => bet.sessionToken !== sessionToken));
+    }
+
+    if (Array.isArray(response.leaderboard)) {
+      renderLeaderboard(response.leaderboard);
+    }
+
+    if (Array.isArray(response.buzzResults)) {
+      renderBuzzResults(response.buzzResults);
+    }
+  });
+});
 
 // --- Utility ---
 function escapeHtml(str) {

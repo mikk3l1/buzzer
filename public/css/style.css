@@ -169,7 +169,7 @@ html, body {
 
 .chance-bet-row {
   display: grid;
-  grid-template-columns: 1fr auto;
+  grid-template-columns: 1fr auto auto;
   gap: 12px;
   align-items: center;
   background: var(--surface);
@@ -184,6 +184,32 @@ html, body {
 .chance-bet-points {
   color: var(--accent);
   font-weight: 800;
+}
+
+.chance-bet-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.chance-bet-action {
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 10px;
+  padding: 7px 10px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--text);
+  background: var(--surface-light);
+  cursor: pointer;
+}
+
+.chance-bet-action.win {
+  background: rgba(74, 222, 128, 0.18);
+  border-color: rgba(74, 222, 128, 0.35);
+}
+
+.chance-bet-action.lose {
+  background: rgba(233, 69, 96, 0.18);
+  border-color: rgba(233, 69, 96, 0.35);
 }
 
 /* Buzz Results */
@@ -460,9 +486,14 @@ html, body {
 }
 
 .player-score {
-  font-size: 1.1rem;
+  font-size: 2rem;
   font-weight: 700;
-  color: var(--accent);
+  color: #D3BCF4;
+  text-shadow:
+    -1px -1px 0 #262626,
+    1px -1px 0 #262626,
+    -1px 1px 0 #262626,
+    1px 1px 0 #262626;
 }
 
 .chance-bet {
@@ -481,13 +512,50 @@ html, body {
   color: var(--text-muted);
 }
 
-.chance-bet input {
+.chance-bet input,
+.chance-bet textarea {
   padding: 10px 12px;
   border-radius: 10px;
   border: 1px solid var(--surface-light);
-  background: #111226;
+  background: color-mix(in srgb, var(--surface-light) 55%, var(--bg));
   color: var(--text);
   font-size: 1rem;
+  font-family: var(--font);
+}
+
+.chance-bet textarea {
+  resize: vertical;
+  min-height: 88px;
+}
+
+.chance-bet input::placeholder,
+.chance-bet textarea::placeholder {
+  color: var(--text-muted);
+}
+
+.chance-bet input:focus,
+.chance-bet textarea:focus {
+  outline: 2px solid color-mix(in srgb, var(--primary) 70%, transparent);
+  outline-offset: 1px;
+  border-color: var(--primary);
+}
+
+.chance-bet input:disabled,
+.chance-bet textarea:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.chance-bet-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.chance-bet-answer {
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  line-height: 1.35;
 }
 
 .btn-chance-submit {
@@ -580,6 +648,14 @@ html, body {
   .score-action-btn {
     padding: 8px 10px;
     font-size: 0.85rem;
+  }
+
+  .chance-bet-row {
+    grid-template-columns: 1fr;
+  }
+
+  .chance-bet-actions {
+    justify-content: flex-start;
   }
 }
 
