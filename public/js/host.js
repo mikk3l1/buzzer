@@ -251,21 +251,26 @@ function renderChanceBets(bets) {
 
   chanceBetsListEl.innerHTML = bets
     .sort((a, b) => b.points - a.points || a.name.localeCompare(b.name))
-    .map(
-      (bet) => `
+    .map((bet) => {
+      const hasAnswer = bet.answer !== null && bet.answer !== undefined;
+      return `
         <div class="chance-bet-row">
           <div class="chance-bet-info">
             <span class="chance-bet-name">${escapeHtml(bet.name)}</span>
-            <span class="chance-bet-answer">Answer: ${escapeHtml(bet.answer || "(no answer submitted)")}</span>
+            <span class="chance-bet-answer${hasAnswer ? "" : " chance-bet-answer--pending"}">
+              ${hasAnswer ? `Answer: ${escapeHtml(bet.answer)}` : "Waiting for answer..."}
+            </span>
           </div>
           <span class="chance-bet-points">${Number(bet.points || 0)} pts</span>
           <div class="chance-bet-actions">
-            <button class="chance-bet-action win" data-action="chance-result" data-token="${bet.sessionToken}" data-result="win">Win Bet</button>
-            <button class="chance-bet-action lose" data-action="chance-result" data-token="${bet.sessionToken}" data-result="lose">Lose Bet</button>
+            ${hasAnswer ? `
+              <button class="chance-bet-action win" data-action="chance-result" data-token="${bet.sessionToken}" data-result="win">Win Bet</button>
+              <button class="chance-bet-action lose" data-action="chance-result" data-token="${bet.sessionToken}" data-result="lose">Lose Bet</button>
+            ` : `<span class="chance-bet-pending">locked in</span>`}
           </div>
         </div>
-      `
-    )
+      `;
+    })
     .join("");
 }
 

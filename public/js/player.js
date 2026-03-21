@@ -21,13 +21,18 @@ const buzzStatus = document.getElementById("buzz-status");
 const playerScoreEl = document.getElementById("player-score");
 const chanceBetForm = document.getElementById("chance-bet-form");
 const chanceBetInput = document.getElementById("chance-bet-input");
+const chanceLockBtn = document.getElementById("chance-lock-btn");
+const chanceAnswerLabel = document.getElementById("chance-answer-label");
 const chanceAnswerInput = document.getElementById("chance-answer-input");
+const chanceSubmitBtn = document.getElementById("chance-submit-btn");
 const chanceBetStatus = document.getElementById("chance-bet-status");
 
 let hasBuzzed = false;
 let currentScore = 0;
 let chanceModeActive = false;
 let lastSubmittedChanceBet = null;
+// chanceBetStep: null | "points" | "answer" | "done"
+let chanceBetStep = null;
 
 // --- Buzzer sound (Web Audio API) ---
 let audioCtx;
@@ -82,6 +87,7 @@ socket.on("join-ok", (data) => {
   buzzerScreen.classList.remove("hidden");
   displayName.textContent = data.name;
   setScore(data.score || 0);
+  chanceBetStep = null;
   setChanceMode(Boolean(data.chanceModeActive));
   lastSubmittedChanceBet = null;
   chanceAnswerInput.value = "";
@@ -97,15 +103,23 @@ socket.on("rejoin-ok", (data) => {
   buzzerScreen.classList.remove("hidden");
   displayName.textContent = data.name;
   setScore(data.score || 0);
+  chanceBetStep = null;
   setChanceMode(Boolean(data.chanceModeActive));
   if (data.chanceBet) {
     chanceBetInput.value = String(data.chanceBet.points || 1);
-    chanceAnswerInput.value = data.chanceBet.answer || "";
     lastSubmittedChanceBet = {
       points: Number(data.chanceBet.points || 0),
-      answer: String(data.chanceBet.answer || ""),
+      answer: data.chanceBet.answer,
     };
-    setChanceBetStatus(`Submitted: ${data.chanceBet.points} pts`);
+    if (data.chanceBet.answer) {
+      chanceAnswerInput.value = data.chanceBet.answer;
+      setChanceBetStep("done");
+      setChanceBetStatus(`Submitted: ${data.chanceBet.points} pts — answer received ✓`);
+    } else {
+      chanceAnswerInput.value = "";
+      setChanceBetStep("answer");
+      setChanceBetStatus(`${data.chanceBet.points} pts locked in — now type your answer`);
+    }
   } else {
     lastSubmittedChanceBet = null;
     chanceAnswerInput.value = "";
@@ -148,18 +162,27 @@ socket.on("chance-mode-update", (data) => {
   setChanceMode(Boolean(data?.active));
 });
 
+socket.on("chance-bet-locked", (data) => {
+  lastSubmittedChanceBet = { points: Number(data.points || 0), answer: null };
+  chanceBetInput.value = String(data.points);
+  setChanceBetStep("answer");
+  setChanceBetStatus(`${data.points} pts locked in — now type your answer`);
+});
+
 socket.on("chance-bet-ok", (data) => {
   const confirmedAnswer = String(data.answer || "").trim();
   chanceAnswerInput.value = confirmedAnswer || chanceAnswerInput.value;
   lastSubmittedChanceBet = {
     points: Number(data.points || 0),
-    answer: confirmedAnswer || chanceAnswerInput.value.trim(),
+    answer: confirmedAnswer,
   };
+  setChanceBetStep("done");
   setChanceBetStatus(`Submitted: ${data.points} pts — answer received ✓`);
 });
 
 socket.on("chance-bet-error", (msg) => {
   setChanceBetStatus(msg || "Invalid chance bet", true);
+  if (chanceBetStep === "points") chanceLockBtn.disabled = false;
 });
 
 socket.on("chance-bet-resolved", (data) => {
@@ -168,6 +191,8 @@ socket.on("chance-bet-resolved", (data) => {
   lastSubmittedChanceBet = null;
   chanceBetInput.value = currentScore > 0 ? "1" : "";
   chanceAnswerInput.value = "";
+  chanceBetStep = null;
+  setChanceBetStep("points");
   setChanceBetStatus(
     result === "win"
       ? `Bet won: +${points} pts`
@@ -231,11 +256,25 @@ socket.on("round-reset", () => {
 
 chanceBetForm.addEventListener("submit", (e) => {
   e.preventDefault();
-  submitChanceBet();
+  if (!chanceModeActive || chanceBetStep !== "answer") return;
+  const answer = chanceAnswerInput.value.trim();
+  if (!answer) {
+    setChanceBetStatus("Answer is required", true);
+    return;
+  }
+  socket.emit("chance-bet", { answer });
 });
 
-chanceBetInput.addEventListener("input", handleChanceBetDraftChange);
-chanceAnswerInput.addEventListener("input", handleChanceBetDraftChange);
+chanceLockBtn.addEventListener("click", () => {
+  if (!chanceModeActive || chanceBetStep !== "points") return;
+  const points = Number(chanceBetInput.value);
+  if (!Number.isInteger(points) || points < 1 || points > currentScore) {
+    setChanceBetStatus(`Bet must be between 1 and ${currentScore}`, true);
+    return;
+  }
+  chanceLockBtn.disabled = true;
+  socket.emit("chance-bet-lock", { points });
+});
 
 // --- Helpers ---
 function setBuzzerActive(active) {
@@ -255,11 +294,11 @@ function setScore(score) {
   playerScoreEl.textContent = `${currentScore} points`;
 
   chanceBetInput.max = String(Math.max(1, currentScore));
-  if (!chanceBetInput.value) {
+  if (!chanceBetInput.value && chanceBetStep === "points") {
     chanceBetInput.value = currentScore > 0 ? "1" : "";
   }
 
-  if (Number(chanceBetInput.value) > currentScore) {
+  if (chanceBetStep === "points" && Number(chanceBetInput.value) > currentScore) {
     chanceBetInput.value = currentScore > 0 ? String(currentScore) : "";
   }
 
@@ -269,25 +308,39 @@ function setScore(score) {
 function setChanceMode(active) {
   chanceModeActive = active;
   chanceBetForm.classList.toggle("hidden", !active);
-  chanceBetInput.disabled = !active || currentScore < 1;
-  chanceAnswerInput.disabled = !active;
   buzzBtn.classList.toggle("hidden", active);
 
   if (!active) {
     lastSubmittedChanceBet = null;
-  }
-
-  const submitButton = chanceBetForm.querySelector("button[type='submit']");
-  if (submitButton) {
-    submitButton.disabled = !active || currentScore < 1;
-  }
-
-  if (active && currentScore < 1) {
-    setChanceBetStatus("You need at least 1 point to place a bet", true);
-  } else if (!active) {
+    chanceBetStep = null;
     setChanceBetStatus("");
+  } else if (chanceBetStep === null) {
+    setChanceBetStep("points");
   } else {
-    setChanceBetStatus("");
+    setChanceBetStep(chanceBetStep);
+  }
+}
+
+function setChanceBetStep(step) {
+  chanceBetStep = step;
+
+  const isPoints = step === "points";
+  const isAnswer = step === "answer";
+  const showAnswer = step === "answer" || step === "done";
+
+  chanceBetInput.disabled = !isPoints || currentScore < 1;
+  chanceLockBtn.disabled = !isPoints || currentScore < 1;
+  chanceLockBtn.classList.toggle("hidden", !isPoints);
+
+  chanceAnswerLabel.classList.toggle("hidden", !showAnswer);
+  chanceAnswerInput.classList.toggle("hidden", !showAnswer);
+  chanceAnswerInput.disabled = !isAnswer;
+
+  chanceSubmitBtn.classList.toggle("hidden", !showAnswer);
+  chanceSubmitBtn.disabled = !isAnswer;
+
+  if (isPoints && currentScore < 1) {
+    setChanceBetStatus("You need at least 1 point to place a bet", true);
   }
 }
 
@@ -296,51 +349,7 @@ function setChanceBetStatus(message, isError = false) {
   chanceBetStatus.classList.toggle("error", Boolean(isError && message));
 }
 
-function getChanceBetDraft() {
-  return {
-    points: Number(chanceBetInput.value),
-    answer: chanceAnswerInput.value.trim(),
-  };
-}
 
-function isChanceBetDraftValid(draft) {
-  return Number.isInteger(draft.points) && draft.points >= 1 && draft.points <= currentScore && Boolean(draft.answer);
-}
-
-function submitChanceBet() {
-  if (!chanceModeActive) return;
-
-  const draft = getChanceBetDraft();
-  if (!Number.isInteger(draft.points)) {
-    setChanceBetStatus("Bet must be a whole number", true);
-    return;
-  }
-  if (draft.points < 1 || draft.points > currentScore) {
-    setChanceBetStatus(`Bet must be between 1 and ${currentScore}`, true);
-    return;
-  }
-  if (!draft.answer) {
-    setChanceBetStatus("Answer is required", true);
-    return;
-  }
-
-  socket.emit("chance-bet", draft);
-}
-
-function handleChanceBetDraftChange() {
-  if (!chanceModeActive || !lastSubmittedChanceBet) return;
-
-  const draft = getChanceBetDraft();
-  const hasChanges = draft.points !== lastSubmittedChanceBet.points || draft.answer !== lastSubmittedChanceBet.answer;
-  if (!hasChanges) return;
-
-  if (!isChanceBetDraftValid(draft)) {
-    setChanceBetStatus("Update the bet and answer, then submit again", true);
-    return;
-  }
-
-  setChanceBetStatus("Changes not submitted yet. Submit again to update the host view.");
-}
 
 // --- Connection handling ---
 socket.on("disconnect", () => {

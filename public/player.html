@@ -31,11 +31,12 @@
     <p class="player-score" id="player-score">Score: 0 pts</p>
 
     <form class="chance-bet hidden" id="chance-bet-form">
-      <label for="chance-bet-input">Chance Bet</label>
+      <label for="chance-bet-input">Points to bet</label>
       <input type="number" id="chance-bet-input" min="1" step="1" inputmode="numeric" />
-      <label for="chance-answer-input">Your Answer</label>
-      <textarea id="chance-answer-input" rows="3" maxlength="500" placeholder="Type your answer here"></textarea>
-      <button type="submit" class="btn btn-chance-submit">Submit Bet</button>
+      <button type="button" class="btn btn-chance-submit" id="chance-lock-btn">Lock In Points</button>
+      <label for="chance-answer-input" id="chance-answer-label" class="hidden">Your Answer</label>
+      <textarea id="chance-answer-input" rows="3" maxlength="500" placeholder="Type your answer here" class="hidden"></textarea>
+      <button type="submit" class="btn btn-chance-submit hidden" id="chance-submit-btn">Submit Answer</button>
       <p class="chance-bet-status" id="chance-bet-status"></p>
     </form>
 

@@ -128,12 +128,12 @@ function getPlayerScore(sessionToken) {
 
 function normalizeChanceBet(bet) {
   if (typeof bet === "number") {
-    return { points: bet, answer: "" };
+    return { points: bet, answer: null };
   }
 
   return {
     points: Number(bet?.points) || 0,
-    answer: String(bet?.answer || "").trim(),
+    answer: bet?.answer != null ? String(bet.answer).trim() : null,
   };
 }
 
@@ -377,8 +377,8 @@ io.on("connection", async (socket) => {
     emitChanceMode();
   });
 
-  // Player submits chance bet
-  socket.on("chance-bet", (data) => {
+  // Player locks in their points (step 1 of 2)
+  socket.on("chance-bet-lock", (data) => {
     const player = players.get(socket.id);
     if (!player) return;
     if (!chanceModeActive) {
@@ -387,24 +387,47 @@ io.on("connection", async (socket) => {
     }
 
     const points = Number(data?.points);
-    const answer = String(data?.answer || "").trim().slice(0, 500);
     const score = getPlayerScore(player.sessionToken);
 
-    if (!Number.isInteger(points)) {
-      socket.emit("chance-bet-error", "Bet must be a whole number");
-      return;
-    }
-    if (points < 1 || points > score) {
+    if (!Number.isInteger(points) || points < 1 || points > score) {
       socket.emit("chance-bet-error", `Bet must be between 1 and ${score}`);
       return;
     }
+
+    chanceBets.set(player.sessionToken, { points, answer: null });
+    socket.emit("chance-bet-locked", { points });
+    io.to("host-room").emit("chance-bets-update", getChanceBetsForHost());
+  });
+
+  // Player submits their answer (step 2 of 2)
+  socket.on("chance-bet", (data) => {
+    const player = players.get(socket.id);
+    if (!player) return;
+    if (!chanceModeActive) {
+      socket.emit("chance-bet-error", "Chance betting is not active");
+      return;
+    }
+
+    const existing = chanceBets.get(player.sessionToken);
+    if (!existing) {
+      socket.emit("chance-bet-error", "Lock in your points first");
+      return;
+    }
+
+    const bet = normalizeChanceBet(existing);
+    if (bet.answer !== null) {
+      socket.emit("chance-bet-error", "Answer already submitted");
+      return;
+    }
+
+    const answer = String(data?.answer || "").trim().slice(0, 500);
     if (!answer) {
       socket.emit("chance-bet-error", "Answer is required");
       return;
     }
 
-    chanceBets.set(player.sessionToken, { points, answer });
-    socket.emit("chance-bet-ok", { points, answer });
+    chanceBets.set(player.sessionToken, { points: bet.points, answer });
+    socket.emit("chance-bet-ok", { points: bet.points, answer });
     io.to("host-room").emit("chance-bets-update", getChanceBetsForHost());
   });
 
@@ -430,6 +453,10 @@ io.on("connection", async (socket) => {
     const bet = storedBet ? normalizeChanceBet(storedBet) : null;
     if (!bet || bet.points < 1) {
       resolveAck(callback, { ok: false, error: "No active chance bet found for that player" });
+      return;
+    }
+    if (bet.answer === null) {
+      resolveAck(callback, { ok: false, error: "Player hasn't submitted their answer yet" });
       return;
     }
 
