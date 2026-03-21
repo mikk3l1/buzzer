@@ -7,13 +7,18 @@
 }
 
 /* ===== Reset & Base ===== */
-*, *::before, *::after {
+*,
+*::before,
+*::after {
   box-sizing: border-box;
   margin: 0;
   padding: 0;
 }
 
-button, input, textarea, select {
+button,
+input,
+textarea,
+select {
   font-family: var(--font);
 }
 
@@ -23,7 +28,9 @@ button, input, textarea, select {
   --surface-light: #25253e;
   --primary: #e94560;
   --primary-glow: rgba(233, 69, 96, 0.4);
-  --accent: #ffc947;
+  /* --accent: #ffc947; */
+  --accent: #F3E896;
+  --pinkish: #d584b7;
   --text: #eaeaea;
   --text-muted: #8888aa;
   --success: #4ade80;
@@ -31,8 +38,13 @@ button, input, textarea, select {
   --font: "Linnea", "Segoe UI", system-ui, -apple-system, sans-serif;
 }
 
-html, body {
-  height: 100%;
+html {
+  min-height: 100%;
+}
+
+body {
+  min-height: 100%;
+  font-size: 24px;
   font-family: var(--font);
   background: var(--bg);
   color: var(--text);
@@ -62,7 +74,7 @@ html, body {
    HOST PAGE
    ========================================= */
 .host-body {
-  overflow-y: auto;
+  /* scrolls at window level */
 }
 
 .host-container {
@@ -194,7 +206,7 @@ html, body {
 }
 
 .chance-bet-points {
-  color: var(--accent);
+  color: var(--pinkish);
   font-weight: 800;
 }
 
@@ -264,6 +276,7 @@ html, body {
 
 .buzz-name {
   font-weight: 600;
+  font-size: 1.4rem;
 }
 
 .buzz-main {
@@ -274,8 +287,10 @@ html, body {
 
 .buzz-score {
   margin-left: auto;
-  color: var(--accent);
+  /* color: var(--accent); */
+  color: var(--pinkish);
   font-weight: 700;
+  font-size: 1.4rem;
 }
 
 .score-controls {
@@ -298,8 +313,9 @@ html, body {
   background: var(--surface-light);
   color: var(--text);
   border-radius: 10px;
-  padding: 8px 12px;
-  font-size: 0.9rem;
+  padding: 10px 18px;
+  min-width: 56px;
+  font-size: 1.2rem;
   font-weight: 700;
   cursor: pointer;
 }
@@ -357,11 +373,14 @@ html, body {
 
 .leaderboard-name {
   font-weight: 600;
+  font-size: 1.4rem;
 }
 
 .leaderboard-points {
-  color: var(--accent);
+  /* color: var(--accent); */
+  color: var(--pinkish);
   font-weight: 800;
+  font-size: 1.4rem;
 }
 
 @keyframes slideIn {
@@ -369,6 +388,7 @@ html, body {
     opacity: 0;
     transform: translateX(-20px);
   }
+
   to {
     opacity: 1;
     transform: translateX(0);
@@ -420,7 +440,7 @@ html, body {
    PLAYER PAGE
    ========================================= */
 .player-body {
-  height: 100%;
+  height: 100vh;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -521,7 +541,7 @@ html, body {
 }
 
 .chance-bet label {
-  font-size: 0.9rem;
+  font-size: 1.2rem;
   color: var(--text-muted);
 }
 
@@ -636,7 +656,7 @@ html, body {
 .buzz-button.buzzed {
   background: radial-gradient(circle at 35% 35%, #555, #333 60%, #222);
   box-shadow:
-    0 4px 10px rgba(0,0,0,0.3),
+    0 4px 10px rgba(0, 0, 0, 0.3),
     0 0 0 6px var(--surface-light),
     0 0 0 8px #444;
   color: #888;
@@ -653,8 +673,15 @@ html, body {
 }
 
 @keyframes pulse {
-  0%, 100% { transform: scale(1); }
-  50% { transform: scale(1.05); }
+
+  0%,
+  100% {
+    transform: scale(1);
+  }
+
+  50% {
+    transform: scale(1.05);
+  }
 }
 
 @media (max-width: 640px) {
@@ -829,14 +856,31 @@ html, body {
 }
 
 @keyframes easter-bounce {
-  0%, 100% { transform: translateY(0) rotate(0deg); }
-  25% { transform: translateY(-10px) rotate(5deg); }
-  75% { transform: translateY(-5px) rotate(-5deg); }
+
+  0%,
+  100% {
+    transform: translateY(0) rotate(0deg);
+  }
+
+  25% {
+    transform: translateY(-10px) rotate(5deg);
+  }
+
+  75% {
+    transform: translateY(-5px) rotate(-5deg);
+  }
 }
 
 @keyframes easter-float {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-15px); }
+
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+
+  50% {
+    transform: translateY(-15px);
+  }
 }
 
 [data-theme="easter"] .buzz-card.winner {
@@ -851,7 +895,7 @@ html, body {
 [data-theme="easter"] .buzz-button.buzzed {
   background: radial-gradient(circle at 35% 35%, #d5c8dc, #b8a8c2 60%, #998aa6);
   box-shadow:
-    0 4px 10px rgba(0,0,0,0.1),
+    0 4px 10px rgba(0, 0, 0, 0.1),
     0 0 0 6px var(--surface-light),
     0 0 0 8px #b8a8c2;
   color: #8a7399;
@@ -886,7 +930,7 @@ html, body {
 [data-theme="neon"] .buzz-button.buzzed {
   background: radial-gradient(circle at 35% 35%, #444, #282828 60%, #1a1a1a);
   box-shadow:
-    0 4px 10px rgba(0,0,0,0.5),
+    0 4px 10px rgba(0, 0, 0, 0.5),
     0 0 0 6px var(--surface-light),
     0 0 0 8px #444;
   color: #555;
@@ -921,7 +965,7 @@ html, body {
 [data-theme="ocean"] .buzz-button.buzzed {
   background: radial-gradient(circle at 35% 35%, #2a4060, #1a3050 60%, #0f2040);
   box-shadow:
-    0 4px 10px rgba(0,0,0,0.3),
+    0 4px 10px rgba(0, 0, 0, 0.3),
     0 0 0 6px var(--surface-light),
     0 0 0 8px #2a4060;
   color: #4a6a8a;
