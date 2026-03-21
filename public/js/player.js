@@ -130,14 +130,10 @@ socket.on("rejoin-ok", (data) => {
   if (data.hasBuzzed) {
     hasBuzzed = true;
     setBuzzerActive(false);
-    if (data.position === 1) {
-      buzzBtn.classList.add("winner");
-      buzzStatus.textContent = "\u{1F947} You were 1st!";
-    } else {
-      const suffix =
-        data.position === 2 ? "nd" : data.position === 3 ? "rd" : "th";
-      buzzStatus.textContent = `You were ${data.position}${suffix}!`;
-    }
+    const medal = data.position === 1 ? "🥇" : data.position === 2 ? "🥈" : data.position === 3 ? "🥉" : "💩";
+    const ordinal = data.position === 1 ? "1st" : data.position === 2 ? "2nd" : data.position === 3 ? "3rd" : `${data.position}th`;
+    buzzStatus.textContent = `${medal} You were ${ordinal}!`;
+    if (data.position === 1) buzzBtn.classList.add("winner");
   } else {
     hasBuzzed = false;
     setBuzzerActive(true);
@@ -223,13 +219,11 @@ socket.on("buzz-ack", (data) => {
   hasBuzzed = true;
   setBuzzerActive(false);
 
-  const suffix =
-    data.position === 1 ? "st" : data.position === 2 ? "nd" : data.position === 3 ? "rd" : "th";
-  buzzStatus.textContent = `You were ${data.position}${suffix}!`;
+  const medal = data.position === 1 ? "🥇" : data.position === 2 ? "🥈" : data.position === 3 ? "🥉" : "💩";
+  buzzStatus.textContent = `${medal} You were ${data.position === 1 ? "1st" : data.position === 2 ? "2nd" : data.position === 3 ? "3rd" : `${data.position}th`}!`;
 
   if (data.position === 1) {
     buzzBtn.classList.add("winner");
-    buzzStatus.textContent = "\u{1F947} You were 1st!";
   }
 });
 

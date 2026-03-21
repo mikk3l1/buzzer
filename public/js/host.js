@@ -134,7 +134,7 @@ function renderBuzzResults(results) {
     const card = document.createElement("div");
     card.className = "buzz-card" + (r.position === 1 ? " winner" : "");
 
-    const medal = r.position === 1 ? "🥇" : r.position === 2 ? "🥈" : r.position === 3 ? "🥉" : `#${r.position}`;
+    const medal = r.position === 1 ? "🥇" : r.position === 2 ? "🥈" : r.position === 3 ? "🥉" : "💩";
 
     card.innerHTML = `
       <div class="buzz-main">
