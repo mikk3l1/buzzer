@@ -14,8 +14,6 @@ const qrImg = document.getElementById("qr-code");
 const joinUrlEl = document.getElementById("join-url");
 const roomCodeEl = document.getElementById("room-code");
 const btnReset = document.getElementById("btn-reset");
-const autoResetToggle = document.getElementById("auto-reset-toggle");
-const autoResetDelay = document.getElementById("auto-reset-delay");
 const buzzResultsEl = document.getElementById("buzz-results");
 const waitingMessage = document.getElementById("waiting-message");
 const playerListEl = document.getElementById("player-list");
@@ -63,11 +61,6 @@ socket.on("host-info", (info) => {
   if (info.qrDataUrl) {
     qrImg.src = info.qrDataUrl;
     qrImg.style.display = "block";
-  }
-  if (info.autoReset) {
-    autoResetToggle.checked = info.autoReset.enabled;
-    autoResetDelay.value = Math.round(info.autoReset.delayMs / 1000);
-    autoResetDelay.disabled = !info.autoReset.enabled;
   }
   if (info.theme) {
     themeSelect.value = info.theme;
@@ -132,29 +125,6 @@ btnReset.addEventListener("click", () => {
 
 socket.on("round-reset", () => {
   // Visual feedback handled by buzz-results update
-});
-
-// --- Auto-reset ---
-autoResetToggle.addEventListener("change", () => {
-  autoResetDelay.disabled = !autoResetToggle.checked;
-  sendAutoResetConfig();
-});
-
-autoResetDelay.addEventListener("change", () => {
-  sendAutoResetConfig();
-});
-
-function sendAutoResetConfig() {
-  socket.emit("auto-reset-config", {
-    enabled: autoResetToggle.checked,
-    delayMs: Number(autoResetDelay.value) * 1000,
-  });
-}
-
-socket.on("auto-reset-update", (config) => {
-  autoResetToggle.checked = config.enabled;
-  autoResetDelay.value = Math.round(config.delayMs / 1000);
-  autoResetDelay.disabled = !config.enabled;
 });
 
 // --- Theme selection ---

@@ -15,8 +15,6 @@ const PORT = process.env.PORT || 3000;
 const players = new Map(); // socketId -> { name, joinedAt }
 let buzzOrder = []; // [{ socketId, name, timestamp }]
 let roundActive = true;
-let autoReset = { enabled: false, delayMs: 5000 };
-let autoResetTimer = null;
 let currentTheme = "default";
 
 // --- Room code ---
@@ -72,17 +70,6 @@ function getBuzzResults() {
   }));
 }
 
-function scheduleAutoReset() {
-  if (!autoReset.enabled) return;
-  clearTimeout(autoResetTimer);
-  autoResetTimer = setTimeout(() => {
-    buzzOrder = [];
-    roundActive = true;
-    io.emit("round-reset");
-    io.to("host-room").emit("buzz-results", getBuzzResults());
-  }, autoReset.delayMs);
-}
-
 // --- Socket.IO ---
 io.on("connection", async (socket) => {
   // Host connects
@@ -110,10 +97,12 @@ io.on("connection", async (socket) => {
       players: getPlayerList(),
       buzzResults: getBuzzResults(),
       roundActive,
-      autoReset,
       theme: currentTheme,
     });
   });
+
+  // Send current theme immediately on connect (so join page gets themed)
+  socket.emit("theme-update", currentTheme);
 
   // Player joins
   socket.on("player-join", (data) => {
@@ -162,13 +151,11 @@ io.on("connection", async (socket) => {
     // If first buzz, notify host for sound
     if (position === 1) {
       io.to("host-room").emit("first-buzz", { name: entry.name });
-      scheduleAutoReset();
     }
   });
 
   // Host resets round
   socket.on("reset-round", () => {
-    clearTimeout(autoResetTimer);
     buzzOrder = [];
     roundActive = true;
     io.emit("round-reset");
@@ -181,13 +168,6 @@ io.on("connection", async (socket) => {
     if (!allowed.includes(theme)) return;
     currentTheme = theme;
     io.emit("theme-update", currentTheme);
-  });
-
-  // Host toggles auto-reset
-  socket.on("auto-reset-config", (config) => {
-    autoReset.enabled = Boolean(config.enabled);
-    autoReset.delayMs = Math.max(1000, Math.min(60000, Number(config.delayMs) || 5000));
-    io.to("host-room").emit("auto-reset-update", autoReset);
   });
 
   // Disconnect

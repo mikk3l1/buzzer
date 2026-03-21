@@ -122,49 +122,6 @@ html, body {
   box-shadow: 0 6px 30px var(--primary-glow);
 }
 
-.auto-reset-group {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  background: var(--surface);
-  padding: 10px 16px;
-  border-radius: var(--radius);
-}
-
-.toggle-label {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  cursor: pointer;
-  font-size: 0.95rem;
-}
-
-.toggle-label input[type="checkbox"] {
-  width: 18px;
-  height: 18px;
-  accent-color: var(--primary);
-}
-
-.delay-input {
-  width: 60px;
-  padding: 6px 8px;
-  background: var(--surface-light);
-  border: 1px solid #444;
-  border-radius: 6px;
-  color: var(--text);
-  font-size: 0.95rem;
-  text-align: center;
-}
-
-.delay-input:disabled {
-  opacity: 0.4;
-}
-
-.delay-unit {
-  font-size: 0.85rem;
-  color: var(--text-muted);
-}
-
 /* Buzz Results */
 .buzz-results {
   min-height: 120px;
@@ -444,15 +401,19 @@ html, body {
 
 /* Easter — pastel spring */
 [data-theme="easter"] {
-  --bg: #fdf6f0;
-  --surface: #f0e6f6;
-  --surface-light: #e8d5f5;
+  --bg: #f0dff6;
+  --surface: rgba(255, 255, 255, 0.45);
+  --surface-light: rgba(232, 213, 245, 0.6);
   --primary: #e88bc4;
   --primary-glow: rgba(232, 139, 196, 0.35);
   --accent: #f5c842;
   --text: #3d2c4e;
   --text-muted: #8a7399;
   --success: #7dcea0;
+}
+
+[data-theme="easter"] body {
+  background: url("/images/easter-bg.svg") center/cover no-repeat fixed;
 }
 
 /* QR code needs a dark background on light themes */
@@ -549,6 +510,11 @@ html, body {
 @keyframes easter-float {
   0%, 100% { transform: translateY(0); }
   50% { transform: translateY(-15px); }
+}
+
+[data-theme="easter"] .buzz-card.winner {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.5) 0%, rgba(255, 243, 200, 0.6) 100%);
+  box-shadow: 0 4px 20px rgba(245, 200, 66, 0.2);
 }
 
 [data-theme="easter"] .buzz-button {
