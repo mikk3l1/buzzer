@@ -34,7 +34,7 @@ let lastSubmittedChanceBet = null;
 // chanceBetStep: null | "points" | "answer" | "done"
 let chanceBetStep = null;
 
-// --- Buzzer sound (random animal MP3) ---
+// --- Buzzer sound (one fixed animal per player) ---
 const BUZZ_SOUNDS = [
   "/sounds/chicken.mp3",
   "/sounds/cow-moo.mp3",
@@ -42,9 +42,10 @@ const BUZZ_SOUNDS = [
   "/sounds/Lamb.mp3",
   "/sounds/Sheep.mp3",
 ];
+let myBuzzSound = null;
 let buzzAudio = null;
 function playBuzzSound() {
-  const src = BUZZ_SOUNDS[Math.floor(Math.random() * BUZZ_SOUNDS.length)];
+  const src = myBuzzSound || BUZZ_SOUNDS[0];
   if (buzzAudio) { buzzAudio.pause(); buzzAudio.currentTime = 0; }
   buzzAudio = new Audio(src);
   buzzAudio.play().catch(() => {});
@@ -92,6 +93,7 @@ socket.on("join-ok", (data) => {
   setBuzzerActive(true);
   if (data.theme) applyTheme(data.theme);
   if (data.sessionToken) setSessionToken(data.sessionToken);
+  if (data.soundIndex != null) myBuzzSound = BUZZ_SOUNDS[data.soundIndex % BUZZ_SOUNDS.length];
 });
 
 // --- Rejoin after reload ---
@@ -102,6 +104,7 @@ socket.on("rejoin-ok", (data) => {
   setScore(data.score || 0);
   chanceBetStep = null;
   setChanceMode(Boolean(data.chanceModeActive));
+  if (data.soundIndex != null) myBuzzSound = BUZZ_SOUNDS[data.soundIndex % BUZZ_SOUNDS.length];
   if (data.chanceBet) {
     chanceBetInput.value = String(data.chanceBet.points || 1);
     lastSubmittedChanceBet = {

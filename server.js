@@ -21,6 +21,8 @@ let buzzOrder = []; // [{ sessionToken, name, timestamp }]
 let roundActive = true;
 let currentTheme = "default";
 let chanceModeActive = false;
+let nextSoundIndex = 0; // cycles through available buzz sounds
+const SOUND_COUNT = 5;
 
 const SESSION_GRACE_MS = 60_000; // 60 seconds to reconnect after disconnect
 
@@ -71,14 +73,15 @@ function getPlayerList() {
 
   // Active players
   for (const [id, p] of players) {
-    list.push({ id, name: p.name });
+    const session = sessions.get(p.sessionToken);
+    list.push({ id, name: p.name, soundIndex: session?.soundIndex ?? 0 });
     seen.add(p.sessionToken);
   }
 
   // Players in grace period (disconnected but session still alive)
   for (const [token, session] of sessions) {
     if (session.disconnectTimer && !seen.has(token)) {
-      list.push({ id: token, name: session.name, disconnected: true });
+      list.push({ id: token, name: session.name, disconnected: true, soundIndex: session.soundIndex ?? 0 });
     }
   }
 
@@ -258,6 +261,7 @@ io.on("connection", async (socket) => {
       position: alreadyBuzzed
         ? buzzOrder.findIndex((b) => b.sessionToken === token) + 1
         : null,
+      soundIndex: session.soundIndex ?? 0,
     });
 
     socket.emit("round-state", { active: roundActive && !alreadyBuzzed });
@@ -275,9 +279,11 @@ io.on("connection", async (socket) => {
     }
 
     const sessionToken = crypto.randomBytes(16).toString("hex");
+    const soundIndex = nextSoundIndex % SOUND_COUNT;
+    nextSoundIndex++;
 
     players.set(socket.id, { name, sessionToken, joinedAt: Date.now() });
-    sessions.set(sessionToken, { name, socketId: socket.id, disconnectTimer: null });
+    sessions.set(sessionToken, { name, socketId: socket.id, disconnectTimer: null, soundIndex });
     ensureScoreEntry(sessionToken, name);
 
     socket.emit("join-ok", {
@@ -286,6 +292,7 @@ io.on("connection", async (socket) => {
       sessionToken,
       score: getPlayerScore(sessionToken),
       chanceModeActive,
+      soundIndex,
     });
 
     io.to("host-room").emit("player-list", getPlayerList());

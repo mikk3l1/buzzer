@@ -56,6 +56,8 @@ socket.on("host-info", (info) => {
 // --- Player list ---
 socket.on("player-list", (list) => renderPlayers(list));
 
+const SOUND_EMOJIS = ["🐔", "🐄", "🐴", "🐑", "🐏"];
+
 function renderPlayers(list) {
   playerCountEl.textContent = list.length;
   if (list.length === 0) {
@@ -63,7 +65,10 @@ function renderPlayers(list) {
     return;
   }
   playerListEl.innerHTML = list
-    .map((p) => `<div class="player-chip">${escapeHtml(p.name)}</div>`)
+    .map((p) => {
+      const emoji = SOUND_EMOJIS[p.soundIndex % SOUND_EMOJIS.length];
+      return `<div class="player-chip">${emoji} ${escapeHtml(p.name)}</div>`;
+    })
     .join("");
 }
 
