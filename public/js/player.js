@@ -34,23 +34,20 @@ let lastSubmittedChanceBet = null;
 // chanceBetStep: null | "points" | "answer" | "done"
 let chanceBetStep = null;
 
-// --- Buzzer sound (Web Audio API) ---
-let audioCtx;
+// --- Buzzer sound (random animal MP3) ---
+const BUZZ_SOUNDS = [
+  "/sounds/chicken.mp3",
+  "/sounds/cow-moo.mp3",
+  "/sounds/horse-neigh.mp3",
+  "/sounds/Lamb.mp3",
+  "/sounds/Sheep.mp3",
+];
+let buzzAudio = null;
 function playBuzzSound() {
-  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-  const ctx = audioCtx;
-  const now = ctx.currentTime;
-
-  const osc = ctx.createOscillator();
-  const gain = ctx.createGain();
-  osc.type = "sawtooth";
-  osc.frequency.setValueAtTime(500, now);
-  osc.frequency.exponentialRampToValueAtTime(300, now + 0.2);
-  gain.gain.setValueAtTime(0.4, now);
-  gain.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
-  osc.connect(gain).connect(ctx.destination);
-  osc.start(now);
-  osc.stop(now + 0.3);
+  const src = BUZZ_SOUNDS[Math.floor(Math.random() * BUZZ_SOUNDS.length)];
+  if (buzzAudio) { buzzAudio.pause(); buzzAudio.currentTime = 0; }
+  buzzAudio = new Audio(src);
+  buzzAudio.play().catch(() => {});
 }
 
 // --- Haptic feedback ---

@@ -30,38 +30,6 @@ let latestBuzzResults = [];
 let chanceModeActive = false;
 let latestChanceBets = [];
 
-// --- Buzzer sound (generated via Web Audio API) ---
-let audioCtx;
-function playBuzzSound() {
-  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-  const ctx = audioCtx;
-
-  // Fun two-tone game-show buzzer
-  const now = ctx.currentTime;
-
-  // Tone 1
-  const osc1 = ctx.createOscillator();
-  const gain1 = ctx.createGain();
-  osc1.type = "square";
-  osc1.frequency.setValueAtTime(800, now);
-  gain1.gain.setValueAtTime(0.3, now);
-  gain1.gain.exponentialRampToValueAtTime(0.01, now + 0.15);
-  osc1.connect(gain1).connect(ctx.destination);
-  osc1.start(now);
-  osc1.stop(now + 0.15);
-
-  // Tone 2
-  const osc2 = ctx.createOscillator();
-  const gain2 = ctx.createGain();
-  osc2.type = "square";
-  osc2.frequency.setValueAtTime(600, now + 0.15);
-  gain2.gain.setValueAtTime(0.3, now + 0.15);
-  gain2.gain.exponentialRampToValueAtTime(0.01, now + 0.5);
-  osc2.connect(gain2).connect(ctx.destination);
-  osc2.start(now + 0.15);
-  osc2.stop(now + 0.5);
-}
-
 // --- Join as host ---
 socket.on("connect", () => {
   socket.emit("host-join");
@@ -110,7 +78,7 @@ socket.on("chance-bets-update", (bets) => {
 });
 
 socket.on("first-buzz", () => {
-  playBuzzSound();
+  // no sound on host
 });
 
 function renderBuzzResults(results) {
