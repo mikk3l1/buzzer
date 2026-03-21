@@ -19,6 +19,11 @@ const waitingMessage = document.getElementById("waiting-message");
 const playerListEl = document.getElementById("player-list");
 const playerCountEl = document.getElementById("player-count");
 const themeSelect = document.getElementById("theme-select");
+const btnResetScores = document.getElementById("btn-reset-scores");
+const leaderboardListEl = document.getElementById("leaderboard-list");
+
+const scoreSelection = new Map();
+let latestBuzzResults = [];
 
 // --- Buzzer sound (generated via Web Audio API) ---
 let audioCtx;
@@ -68,6 +73,7 @@ socket.on("host-info", (info) => {
   }
   renderPlayers(info.players);
   renderBuzzResults(info.buzzResults);
+  renderLeaderboard(info.leaderboard || []);
 });
 
 // --- Player list ---
@@ -86,16 +92,20 @@ function renderPlayers(list) {
 
 // --- Buzz results ---
 socket.on("buzz-results", (results) => renderBuzzResults(results));
+socket.on("leaderboard-update", (leaderboard) => renderLeaderboard(leaderboard));
 
 socket.on("first-buzz", () => {
   playBuzzSound();
 });
 
 function renderBuzzResults(results) {
+  latestBuzzResults = results;
+
   if (results.length === 0) {
     waitingMessage.style.display = "block";
     // Remove result cards but keep waiting message
     buzzResultsEl.querySelectorAll(".buzz-card").forEach((el) => el.remove());
+    scoreSelection.clear();
     return;
   }
   waitingMessage.style.display = "none";
@@ -105,17 +115,79 @@ function renderBuzzResults(results) {
   existing.forEach((el) => el.remove());
 
   results.forEach((r) => {
+    const selectedPoints = scoreSelection.get(r.sessionToken) || 100;
     const card = document.createElement("div");
     card.className = "buzz-card" + (r.position === 1 ? " winner" : "");
 
     const medal = r.position === 1 ? "🥇" : r.position === 2 ? "🥈" : r.position === 3 ? "🥉" : `#${r.position}`;
 
     card.innerHTML = `
-      <span class="buzz-position">${medal}</span>
-      <span class="buzz-name">${escapeHtml(r.name)}</span>
+      <div class="buzz-main">
+        <span class="buzz-position">${medal}</span>
+        <span class="buzz-name">${escapeHtml(r.name)}</span>
+        <span class="buzz-score">${Number(r.score || 0)} pts</span>
+      </div>
+      <div class="score-controls" data-token="${r.sessionToken}">
+        <div class="score-point-buttons">
+          ${[100, 200, 300, 400, 500]
+            .map(
+              (points) =>
+                `<button class="score-point-btn${selectedPoints === points ? " active" : ""}" data-action="select-points" data-token="${r.sessionToken}" data-points="${points}">${points}</button>`
+            )
+            .join("")}
+        </div>
+        <div class="score-actions">
+          <button class="score-action-btn give" data-action="score-player" data-token="${r.sessionToken}" data-mode="give">Give</button>
+          <button class="score-action-btn take" data-action="score-player" data-token="${r.sessionToken}" data-mode="take">Take</button>
+        </div>
+      </div>
     `;
     buzzResultsEl.appendChild(card);
   });
+}
+
+buzzResultsEl.addEventListener("click", (event) => {
+  const button = event.target.closest("button[data-action]");
+  if (!button) return;
+
+  const action = button.dataset.action;
+  const sessionToken = button.dataset.token;
+  if (!sessionToken) return;
+
+  if (action === "select-points") {
+    const points = Number(button.dataset.points);
+    if (![100, 200, 300, 400, 500].includes(points)) return;
+    scoreSelection.set(sessionToken, points);
+    renderBuzzResults(latestBuzzResults);
+    return;
+  }
+
+  if (action === "score-player") {
+    const mode = button.dataset.mode;
+    if (mode !== "give" && mode !== "take") return;
+
+    const points = scoreSelection.get(sessionToken) || 100;
+    socket.emit("apply-score", { sessionToken, points, mode });
+  }
+});
+
+function renderLeaderboard(leaderboard) {
+  if (!leaderboard || leaderboard.length === 0) {
+    leaderboardListEl.innerHTML = '<p class="no-players">No scores yet</p>';
+    return;
+  }
+
+  leaderboardListEl.innerHTML = leaderboard
+    .map(
+      (entry, index) => `
+        <div class="leaderboard-row${entry.connected ? "" : " disconnected"}">
+          <span class="leaderboard-rank">#${index + 1}</span>
+          <span class="leaderboard-name">${escapeHtml(entry.name)}</span>
+          <span class="leaderboard-points">${Number(entry.score || 0)} pts</span>
+        </div>
+      `
+    )
+    .join("");
 }
 
 // --- Reset ---
@@ -125,6 +197,12 @@ btnReset.addEventListener("click", () => {
 
 socket.on("round-reset", () => {
   // Visual feedback handled by buzz-results update
+  scoreSelection.clear();
+  latestBuzzResults = [];
+});
+
+btnResetScores.addEventListener("click", () => {
+  socket.emit("reset-scores");
 });
 
 // --- Theme selection ---

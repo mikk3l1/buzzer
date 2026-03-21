@@ -15,6 +15,7 @@ const PORT = process.env.PORT || 3000;
 // --- Game state ---
 const players = new Map(); // socketId -> { name, sessionToken, joinedAt }
 const sessions = new Map(); // sessionToken -> { name, socketId, disconnectTimer }
+const scores = new Map(); // sessionToken -> { name, score, createdAt }
 let buzzOrder = []; // [{ sessionToken, name, timestamp }]
 let roundActive = true;
 let currentTheme = "default";
@@ -85,7 +86,38 @@ function getBuzzResults() {
     position: i + 1,
     name: b.name,
     timeMs: b.timestamp,
+    sessionToken: b.sessionToken,
+    score: scores.get(b.sessionToken)?.score ?? 0,
   }));
+}
+
+function ensureScoreEntry(sessionToken, name) {
+  const existing = scores.get(sessionToken);
+  if (existing) {
+    existing.name = name;
+    return existing;
+  }
+
+  const created = { name, score: 0, createdAt: Date.now() };
+  scores.set(sessionToken, created);
+  return created;
+}
+
+function getLeaderboard() {
+  return [...scores.entries()]
+    .map(([sessionToken, entry]) => ({
+      sessionToken,
+      name: entry.name,
+      score: entry.score,
+      connected: sessions.has(sessionToken) && !sessions.get(sessionToken)?.disconnectTimer,
+      createdAt: entry.createdAt,
+    }))
+    .sort((a, b) => b.score - a.score || a.createdAt - b.createdAt || a.name.localeCompare(b.name))
+    .map(({ createdAt, ...rest }) => rest);
+}
+
+function emitLeaderboard() {
+  io.to("host-room").emit("leaderboard-update", getLeaderboard());
 }
 
 function removeSession(sessionToken) {
@@ -97,6 +129,7 @@ function removeSession(sessionToken) {
   buzzOrder = buzzOrder.filter((b) => b.sessionToken !== sessionToken);
   io.to("host-room").emit("player-list", getPlayerList());
   io.to("host-room").emit("buzz-results", getBuzzResults());
+  emitLeaderboard();
 }
 
 // --- Socket.IO ---
@@ -125,6 +158,7 @@ io.on("connection", async (socket) => {
       qrDataUrl,
       players: getPlayerList(),
       buzzResults: getBuzzResults(),
+      leaderboard: getLeaderboard(),
       roundActive,
       theme: currentTheme,
     });
@@ -150,6 +184,7 @@ io.on("connection", async (socket) => {
 
     // Re-link session to new socket
     players.set(socket.id, { name: session.name, sessionToken: token, joinedAt: Date.now() });
+    ensureScoreEntry(token, session.name);
 
     // Tell player they're back in
     const alreadyBuzzed = buzzOrder.some((b) => b.sessionToken === token);
@@ -164,6 +199,7 @@ io.on("connection", async (socket) => {
 
     socket.emit("round-state", { active: roundActive && !alreadyBuzzed });
     io.to("host-room").emit("player-list", getPlayerList());
+    emitLeaderboard();
   });
 
   // Player joins fresh
@@ -178,10 +214,12 @@ io.on("connection", async (socket) => {
 
     players.set(socket.id, { name, sessionToken, joinedAt: Date.now() });
     sessions.set(sessionToken, { name, socketId: socket.id, disconnectTimer: null });
+    ensureScoreEntry(sessionToken, name);
 
     socket.emit("join-ok", { name, theme: currentTheme, sessionToken });
 
     io.to("host-room").emit("player-list", getPlayerList());
+    emitLeaderboard();
 
     const alreadyBuzzed = buzzOrder.some((b) => b.sessionToken === sessionToken);
     socket.emit("round-state", { active: roundActive && !alreadyBuzzed });
@@ -215,12 +253,51 @@ io.on("connection", async (socket) => {
     }
   });
 
+  // Host applies score to a buzzed player
+  socket.on("apply-score", (data) => {
+    if (!socket.rooms.has("host-room")) return;
+
+    const sessionToken = String(data?.sessionToken || "");
+    const points = Number(data?.points);
+    const mode = String(data?.mode || "");
+
+    if (!sessionToken) return;
+    if (![100, 200, 300, 400, 500].includes(points)) return;
+    if (mode !== "give" && mode !== "take") return;
+
+    const buzzedPlayer = buzzOrder.find((b) => b.sessionToken === sessionToken);
+    if (!buzzedPlayer) return;
+
+    const scoreEntry = ensureScoreEntry(sessionToken, buzzedPlayer.name);
+    if (mode === "give") {
+      scoreEntry.score += points;
+    } else {
+      scoreEntry.score = Math.max(0, scoreEntry.score - points);
+    }
+
+    io.to("host-room").emit("buzz-results", getBuzzResults());
+    emitLeaderboard();
+  });
+
   // Host resets round
   socket.on("reset-round", () => {
     buzzOrder = [];
     roundActive = true;
     io.emit("round-reset");
     io.to("host-room").emit("buzz-results", getBuzzResults());
+  });
+
+  // Host resets persistent scores/leaderboard
+  socket.on("reset-scores", () => {
+    if (!socket.rooms.has("host-room")) return;
+
+    scores.clear();
+    for (const [token, session] of sessions) {
+      ensureScoreEntry(token, session.name);
+    }
+
+    io.to("host-room").emit("buzz-results", getBuzzResults());
+    emitLeaderboard();
   });
 
   // Host changes theme
@@ -246,6 +323,7 @@ io.on("connection", async (socket) => {
     }
 
     io.to("host-room").emit("player-list", getPlayerList());
+    emitLeaderboard();
   });
 });
 
