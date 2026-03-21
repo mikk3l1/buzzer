@@ -4,6 +4,7 @@ const { Server } = require("socket.io");
 const os = require("os");
 const QRCode = require("qrcode");
 const path = require("path");
+const crypto = require("crypto");
 
 const app = express();
 const server = http.createServer(app);
@@ -12,10 +13,13 @@ const io = new Server(server);
 const PORT = process.env.PORT || 3000;
 
 // --- Game state ---
-const players = new Map(); // socketId -> { name, joinedAt }
-let buzzOrder = []; // [{ socketId, name, timestamp }]
+const players = new Map(); // socketId -> { name, sessionToken, joinedAt }
+const sessions = new Map(); // sessionToken -> { name, socketId, disconnectTimer }
+let buzzOrder = []; // [{ sessionToken, name, timestamp }]
 let roundActive = true;
 let currentTheme = "default";
+
+const SESSION_GRACE_MS = 60_000; // 60 seconds to reconnect after disconnect
 
 // --- Room code ---
 function generateRoomCode() {
@@ -56,10 +60,24 @@ app.get("/host", (_req, res) => {
 
 // --- Helpers ---
 function getPlayerList() {
-  return Array.from(players.entries()).map(([id, p]) => ({
-    id,
-    name: p.name,
-  }));
+  // Include players with active sockets AND sessions in grace period
+  const list = [];
+  const seen = new Set();
+
+  // Active players
+  for (const [id, p] of players) {
+    list.push({ id, name: p.name });
+    seen.add(p.sessionToken);
+  }
+
+  // Players in grace period (disconnected but session still alive)
+  for (const [token, session] of sessions) {
+    if (session.disconnectTimer && !seen.has(token)) {
+      list.push({ id: token, name: session.name, disconnected: true });
+    }
+  }
+
+  return list;
 }
 
 function getBuzzResults() {
@@ -68,6 +86,17 @@ function getBuzzResults() {
     name: b.name,
     timeMs: b.timestamp,
   }));
+}
+
+function removeSession(sessionToken) {
+  const session = sessions.get(sessionToken);
+  if (session) {
+    clearTimeout(session.disconnectTimer);
+    sessions.delete(sessionToken);
+  }
+  buzzOrder = buzzOrder.filter((b) => b.sessionToken !== sessionToken);
+  io.to("host-room").emit("player-list", getPlayerList());
+  io.to("host-room").emit("buzz-results", getBuzzResults());
 }
 
 // --- Socket.IO ---
@@ -104,7 +133,40 @@ io.on("connection", async (socket) => {
   // Send current theme immediately on connect (so join page gets themed)
   socket.emit("theme-update", currentTheme);
 
-  // Player joins
+  // Player rejoins with existing session token (after reload)
+  socket.on("player-rejoin", (data) => {
+    const token = String(data.token || "");
+    const session = sessions.get(token);
+
+    if (!session) {
+      socket.emit("rejoin-failed");
+      return;
+    }
+
+    // Cancel the grace-period disconnect timer
+    clearTimeout(session.disconnectTimer);
+    session.disconnectTimer = null;
+    session.socketId = socket.id;
+
+    // Re-link session to new socket
+    players.set(socket.id, { name: session.name, sessionToken: token, joinedAt: Date.now() });
+
+    // Tell player they're back in
+    const alreadyBuzzed = buzzOrder.some((b) => b.sessionToken === token);
+    socket.emit("rejoin-ok", {
+      name: session.name,
+      theme: currentTheme,
+      hasBuzzed: alreadyBuzzed,
+      position: alreadyBuzzed
+        ? buzzOrder.findIndex((b) => b.sessionToken === token) + 1
+        : null,
+    });
+
+    socket.emit("round-state", { active: roundActive && !alreadyBuzzed });
+    io.to("host-room").emit("player-list", getPlayerList());
+  });
+
+  // Player joins fresh
   socket.on("player-join", (data) => {
     const name = String(data.name || "").trim().slice(0, 30);
     if (!name) {
@@ -112,13 +174,16 @@ io.on("connection", async (socket) => {
       return;
     }
 
-    players.set(socket.id, { name, joinedAt: Date.now() });
-    socket.emit("join-ok", { name, theme: currentTheme });
+    const sessionToken = crypto.randomBytes(16).toString("hex");
+
+    players.set(socket.id, { name, sessionToken, joinedAt: Date.now() });
+    sessions.set(sessionToken, { name, socketId: socket.id, disconnectTimer: null });
+
+    socket.emit("join-ok", { name, theme: currentTheme, sessionToken });
 
     io.to("host-room").emit("player-list", getPlayerList());
 
-    // Tell player current round state
-    const alreadyBuzzed = buzzOrder.some((b) => b.socketId === socket.id);
+    const alreadyBuzzed = buzzOrder.some((b) => b.sessionToken === sessionToken);
     socket.emit("round-state", { active: roundActive && !alreadyBuzzed });
   });
 
@@ -126,29 +191,25 @@ io.on("connection", async (socket) => {
   socket.on("buzz", () => {
     if (!roundActive) return;
     if (!players.has(socket.id)) return;
-    if (buzzOrder.some((b) => b.socketId === socket.id)) return;
+
+    const player = players.get(socket.id);
+    if (buzzOrder.some((b) => b.sessionToken === player.sessionToken)) return;
 
     const entry = {
-      socketId: socket.id,
-      name: players.get(socket.id).name,
+      sessionToken: player.sessionToken,
+      name: player.name,
       timestamp: Date.now(),
     };
     buzzOrder.push(entry);
 
     const position = buzzOrder.length;
 
-    // Tell buzzing player their position
     socket.emit("buzz-ack", { position });
-
-    // Tell all players to lock if this is the first buzz (optional: lock all on first buzz)
-    // Actually, let everyone keep buzzing to record full order
     socket.emit("round-state", { active: false });
 
-    // Send updated results to host
     const results = getBuzzResults();
     io.to("host-room").emit("buzz-results", results);
 
-    // If first buzz, notify host for sound
     if (position === 1) {
       io.to("host-room").emit("first-buzz", { name: entry.name });
     }
@@ -170,15 +231,21 @@ io.on("connection", async (socket) => {
     io.emit("theme-update", currentTheme);
   });
 
-  // Disconnect
+  // Disconnect — start grace period instead of immediate removal
   socket.on("disconnect", () => {
-    if (players.has(socket.id)) {
-      players.delete(socket.id);
-      // Remove from buzz order too
-      buzzOrder = buzzOrder.filter((b) => b.socketId !== socket.id);
-      io.to("host-room").emit("player-list", getPlayerList());
-      io.to("host-room").emit("buzz-results", getBuzzResults());
+    const player = players.get(socket.id);
+    if (!player) return;
+
+    players.delete(socket.id);
+
+    const session = sessions.get(player.sessionToken);
+    if (session) {
+      session.disconnectTimer = setTimeout(() => {
+        removeSession(player.sessionToken);
+      }, SESSION_GRACE_MS);
     }
+
+    io.to("host-room").emit("player-list", getPlayerList());
   });
 });
 

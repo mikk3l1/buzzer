@@ -47,6 +47,19 @@ function vibrate() {
   }
 }
 
+// --- Session persistence ---
+function getSessionToken() {
+  return sessionStorage.getItem("buzzer-session-token");
+}
+
+function setSessionToken(token) {
+  sessionStorage.setItem("buzzer-session-token", token);
+}
+
+function clearSessionToken() {
+  sessionStorage.removeItem("buzzer-session-token");
+}
+
 // --- Join ---
 joinForm.addEventListener("submit", (e) => {
   e.preventDefault();
@@ -63,6 +76,37 @@ socket.on("join-ok", (data) => {
   hasBuzzed = false;
   setBuzzerActive(true);
   if (data.theme) applyTheme(data.theme);
+  if (data.sessionToken) setSessionToken(data.sessionToken);
+});
+
+// --- Rejoin after reload ---
+socket.on("rejoin-ok", (data) => {
+  joinScreen.classList.add("hidden");
+  buzzerScreen.classList.remove("hidden");
+  displayName.textContent = data.name;
+  if (data.theme) applyTheme(data.theme);
+
+  if (data.hasBuzzed) {
+    hasBuzzed = true;
+    setBuzzerActive(false);
+    if (data.position === 1) {
+      buzzBtn.classList.add("winner");
+      buzzStatus.textContent = "\u{1F947} You were 1st!";
+    } else {
+      const suffix =
+        data.position === 2 ? "nd" : data.position === 3 ? "rd" : "th";
+      buzzStatus.textContent = `You were ${data.position}${suffix}!`;
+    }
+  } else {
+    hasBuzzed = false;
+    setBuzzerActive(true);
+    buzzStatus.textContent = "";
+  }
+});
+
+socket.on("rejoin-failed", () => {
+  // Session expired — clear token and show join screen
+  clearSessionToken();
 });
 
 socket.on("theme-update", (theme) => {
@@ -97,7 +141,7 @@ socket.on("buzz-ack", (data) => {
 
   if (data.position === 1) {
     buzzBtn.classList.add("winner");
-    buzzStatus.textContent = "🥇 You were 1st!";
+    buzzStatus.textContent = "\u{1F947} You were 1st!";
   }
 });
 
@@ -134,16 +178,15 @@ function setBuzzerActive(active) {
   }
 }
 
-// --- Reconnection awareness ---
+// --- Connection handling ---
 socket.on("disconnect", () => {
-  buzzStatus.textContent = "Disconnected — reconnecting...";
+  buzzStatus.textContent = "Disconnected \u2014 reconnecting...";
 });
 
 socket.on("connect", () => {
-  // If we had a name, re-join automatically
-  const name = displayName.textContent;
-  if (name && !joinScreen.classList.contains("hidden")) {
-    // We're on the buzzer screen, re-join
-    socket.emit("player-join", { name });
+  // On connect (including after reload), try to rejoin with stored token
+  const token = getSessionToken();
+  if (token) {
+    socket.emit("player-rejoin", { token });
   }
 });
