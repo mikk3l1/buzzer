@@ -424,7 +424,7 @@ html, body {
 }
 
 /* Easter floating decorations */
-[data-theme="easter"] body::before {
+[data-theme="easter"] .host-body::before {
   content: "🐣";
   position: fixed;
   top: 12px;
@@ -435,7 +435,7 @@ html, body {
   pointer-events: none;
 }
 
-[data-theme="easter"] body::after {
+[data-theme="easter"] .host-body::after {
   content: "🐰";
   position: fixed;
   bottom: 18px;
