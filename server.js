@@ -16,9 +16,11 @@ const PORT = process.env.PORT || 3000;
 const players = new Map(); // socketId -> { name, sessionToken, joinedAt }
 const sessions = new Map(); // sessionToken -> { name, socketId, disconnectTimer }
 const scores = new Map(); // sessionToken -> { name, score, createdAt }
+const chanceBets = new Map(); // sessionToken -> points
 let buzzOrder = []; // [{ sessionToken, name, timestamp }]
 let roundActive = true;
 let currentTheme = "default";
+let chanceModeActive = false;
 
 const SESSION_GRACE_MS = 60_000; // 60 seconds to reconnect after disconnect
 
@@ -120,16 +122,50 @@ function emitLeaderboard() {
   io.to("host-room").emit("leaderboard-update", getLeaderboard());
 }
 
+function getPlayerScore(sessionToken) {
+  return scores.get(sessionToken)?.score ?? 0;
+}
+
+function emitPlayerScore(sessionToken) {
+  const session = sessions.get(sessionToken);
+  if (!session || !session.socketId) return;
+
+  io.to(session.socketId).emit("score-update", {
+    score: getPlayerScore(sessionToken),
+  });
+}
+
+function emitAllPlayerScores() {
+  for (const token of sessions.keys()) {
+    emitPlayerScore(token);
+  }
+}
+
+function getChanceBetsForHost() {
+  return [...chanceBets.entries()].map(([sessionToken, points]) => ({
+    sessionToken,
+    name: scores.get(sessionToken)?.name || sessions.get(sessionToken)?.name || "Unknown",
+    points,
+  }));
+}
+
+function emitChanceMode() {
+  io.emit("chance-mode-update", { active: chanceModeActive });
+  io.to("host-room").emit("chance-bets-update", getChanceBetsForHost());
+}
+
 function removeSession(sessionToken) {
   const session = sessions.get(sessionToken);
   if (session) {
     clearTimeout(session.disconnectTimer);
     sessions.delete(sessionToken);
   }
+  chanceBets.delete(sessionToken);
   buzzOrder = buzzOrder.filter((b) => b.sessionToken !== sessionToken);
   io.to("host-room").emit("player-list", getPlayerList());
   io.to("host-room").emit("buzz-results", getBuzzResults());
   emitLeaderboard();
+  io.to("host-room").emit("chance-bets-update", getChanceBetsForHost());
 }
 
 // --- Socket.IO ---
@@ -159,6 +195,8 @@ io.on("connection", async (socket) => {
       players: getPlayerList(),
       buzzResults: getBuzzResults(),
       leaderboard: getLeaderboard(),
+      chanceModeActive,
+      chanceBets: getChanceBetsForHost(),
       roundActive,
       theme: currentTheme,
     });
@@ -191,6 +229,9 @@ io.on("connection", async (socket) => {
     socket.emit("rejoin-ok", {
       name: session.name,
       theme: currentTheme,
+      score: getPlayerScore(token),
+      chanceModeActive,
+      chanceBet: chanceBets.get(token) || null,
       hasBuzzed: alreadyBuzzed,
       position: alreadyBuzzed
         ? buzzOrder.findIndex((b) => b.sessionToken === token) + 1
@@ -200,6 +241,7 @@ io.on("connection", async (socket) => {
     socket.emit("round-state", { active: roundActive && !alreadyBuzzed });
     io.to("host-room").emit("player-list", getPlayerList());
     emitLeaderboard();
+    emitChanceMode();
   });
 
   // Player joins fresh
@@ -216,10 +258,17 @@ io.on("connection", async (socket) => {
     sessions.set(sessionToken, { name, socketId: socket.id, disconnectTimer: null });
     ensureScoreEntry(sessionToken, name);
 
-    socket.emit("join-ok", { name, theme: currentTheme, sessionToken });
+    socket.emit("join-ok", {
+      name,
+      theme: currentTheme,
+      sessionToken,
+      score: getPlayerScore(sessionToken),
+      chanceModeActive,
+    });
 
     io.to("host-room").emit("player-list", getPlayerList());
     emitLeaderboard();
+    emitChanceMode();
 
     const alreadyBuzzed = buzzOrder.some((b) => b.sessionToken === sessionToken);
     socket.emit("round-state", { active: roundActive && !alreadyBuzzed });
@@ -275,16 +324,69 @@ io.on("connection", async (socket) => {
       scoreEntry.score = Math.max(0, scoreEntry.score - points);
     }
 
+    const existingBet = chanceBets.get(sessionToken);
+    if (existingBet && existingBet > scoreEntry.score) {
+      if (scoreEntry.score < 1) {
+        chanceBets.delete(sessionToken);
+      } else {
+        chanceBets.set(sessionToken, scoreEntry.score);
+      }
+    }
+
     io.to("host-room").emit("buzz-results", getBuzzResults());
     emitLeaderboard();
+    emitPlayerScore(sessionToken);
+    io.to("host-room").emit("chance-bets-update", getChanceBetsForHost());
+  });
+
+  // Host toggles chance mode for all players
+  socket.on("set-chance-mode", (data) => {
+    if (!socket.rooms.has("host-room")) return;
+
+    const active = Boolean(data?.active);
+    chanceModeActive = active;
+    if (!chanceModeActive) {
+      chanceBets.clear();
+    }
+
+    emitChanceMode();
+  });
+
+  // Player submits chance bet
+  socket.on("chance-bet", (data) => {
+    const player = players.get(socket.id);
+    if (!player) return;
+    if (!chanceModeActive) {
+      socket.emit("chance-bet-error", "Chance betting is not active");
+      return;
+    }
+
+    const points = Number(data?.points);
+    const score = getPlayerScore(player.sessionToken);
+
+    if (!Number.isInteger(points)) {
+      socket.emit("chance-bet-error", "Bet must be a whole number");
+      return;
+    }
+    if (points < 1 || points > score) {
+      socket.emit("chance-bet-error", `Bet must be between 1 and ${score}`);
+      return;
+    }
+
+    chanceBets.set(player.sessionToken, points);
+    socket.emit("chance-bet-ok", { points });
+    io.to("host-room").emit("chance-bets-update", getChanceBetsForHost());
   });
 
   // Host resets round
   socket.on("reset-round", () => {
     buzzOrder = [];
     roundActive = true;
+    chanceModeActive = false;
+    chanceBets.clear();
     io.emit("round-reset");
     io.to("host-room").emit("buzz-results", getBuzzResults());
+    emitChanceMode();
   });
 
   // Host resets persistent scores/leaderboard
@@ -298,6 +400,9 @@ io.on("connection", async (socket) => {
 
     io.to("host-room").emit("buzz-results", getBuzzResults());
     emitLeaderboard();
+    emitAllPlayerScores();
+    chanceBets.clear();
+    io.to("host-room").emit("chance-bets-update", getChanceBetsForHost());
   });
 
   // Host changes theme

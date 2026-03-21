@@ -21,9 +21,13 @@ const playerCountEl = document.getElementById("player-count");
 const themeSelect = document.getElementById("theme-select");
 const btnResetScores = document.getElementById("btn-reset-scores");
 const leaderboardListEl = document.getElementById("leaderboard-list");
+const btnChanceToggle = document.getElementById("btn-chance-toggle");
+const chanceStateEl = document.getElementById("chance-state");
+const chanceBetsListEl = document.getElementById("chance-bets-list");
 
 const scoreSelection = new Map();
 let latestBuzzResults = [];
+let chanceModeActive = false;
 
 // --- Buzzer sound (generated via Web Audio API) ---
 let audioCtx;
@@ -74,6 +78,8 @@ socket.on("host-info", (info) => {
   renderPlayers(info.players);
   renderBuzzResults(info.buzzResults);
   renderLeaderboard(info.leaderboard || []);
+  setChanceMode(Boolean(info.chanceModeActive));
+  renderChanceBets(info.chanceBets || []);
 });
 
 // --- Player list ---
@@ -93,6 +99,12 @@ function renderPlayers(list) {
 // --- Buzz results ---
 socket.on("buzz-results", (results) => renderBuzzResults(results));
 socket.on("leaderboard-update", (leaderboard) => renderLeaderboard(leaderboard));
+socket.on("chance-mode-update", (data) => {
+  setChanceMode(Boolean(data?.active));
+});
+socket.on("chance-bets-update", (bets) => {
+  renderChanceBets(bets || []);
+});
 
 socket.on("first-buzz", () => {
   playBuzzSound();
@@ -205,6 +217,10 @@ btnResetScores.addEventListener("click", () => {
   socket.emit("reset-scores");
 });
 
+btnChanceToggle.addEventListener("click", () => {
+  socket.emit("set-chance-mode", { active: !chanceModeActive });
+});
+
 // --- Theme selection ---
 themeSelect.addEventListener("change", () => {
   socket.emit("theme-change", themeSelect.value);
@@ -214,6 +230,32 @@ socket.on("theme-update", (theme) => {
   themeSelect.value = theme;
   applyTheme(theme);
 });
+
+function setChanceMode(active) {
+  chanceModeActive = active;
+  chanceStateEl.textContent = `Chance: ${active ? "On" : "Off"}`;
+  btnChanceToggle.textContent = active ? "Disable Chance" : "Enable Chance";
+  btnChanceToggle.classList.toggle("active", active);
+}
+
+function renderChanceBets(bets) {
+  if (!bets || bets.length === 0) {
+    chanceBetsListEl.innerHTML = '<p class="no-players">No bets yet</p>';
+    return;
+  }
+
+  chanceBetsListEl.innerHTML = bets
+    .sort((a, b) => b.points - a.points || a.name.localeCompare(b.name))
+    .map(
+      (bet) => `
+        <div class="chance-bet-row">
+          <span class="chance-bet-name">${escapeHtml(bet.name)}</span>
+          <span class="chance-bet-points">${Number(bet.points || 0)} pts</span>
+        </div>
+      `
+    )
+    .join("");
+}
 
 // --- Utility ---
 function escapeHtml(str) {

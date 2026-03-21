@@ -134,6 +134,58 @@ html, body {
   border-color: rgba(255, 255, 255, 0.25);
 }
 
+.btn-chance {
+  background: rgba(255, 201, 71, 0.15);
+  color: var(--text);
+  border: 1px solid rgba(255, 201, 71, 0.45);
+  padding: 14px 24px;
+}
+
+.btn-chance.active {
+  background: rgba(74, 222, 128, 0.2);
+  border-color: rgba(74, 222, 128, 0.4);
+}
+
+.chance-state {
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.chance-bets-section {
+  margin: 0 0 28px;
+}
+
+.chance-bets-section h2 {
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin-bottom: 12px;
+}
+
+.chance-bets-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.chance-bet-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 12px;
+  align-items: center;
+  background: var(--surface);
+  border-radius: var(--radius);
+  padding: 10px 14px;
+}
+
+.chance-bet-name {
+  font-weight: 600;
+}
+
+.chance-bet-points {
+  color: var(--accent);
+  font-weight: 800;
+}
+
 /* Buzz Results */
 .buzz-results {
   min-height: 120px;
@@ -405,6 +457,54 @@ html, body {
 .player-name {
   font-size: 1.1rem;
   color: var(--text-muted);
+}
+
+.player-score {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--accent);
+}
+
+.chance-bet {
+  width: min(90vw, 360px);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  background: var(--surface);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: var(--radius);
+  padding: 14px;
+}
+
+.chance-bet label {
+  font-size: 0.9rem;
+  color: var(--text-muted);
+}
+
+.chance-bet input {
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--surface-light);
+  background: #111226;
+  color: var(--text);
+  font-size: 1rem;
+}
+
+.btn-chance-submit {
+  background: rgba(255, 201, 71, 0.2);
+  color: var(--text);
+  border: 1px solid rgba(255, 201, 71, 0.45);
+  width: 100%;
+}
+
+.chance-bet-status {
+  min-height: 1.2em;
+  font-size: 0.9rem;
+  color: var(--success);
+}
+
+.chance-bet-status.error {
+  color: var(--primary);
 }
 
 /* The Big Buzzer Button */

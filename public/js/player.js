@@ -18,8 +18,14 @@ const errorMsg = document.getElementById("error-msg");
 const displayName = document.getElementById("display-name");
 const buzzBtn = document.getElementById("buzz-btn");
 const buzzStatus = document.getElementById("buzz-status");
+const playerScoreEl = document.getElementById("player-score");
+const chanceBetForm = document.getElementById("chance-bet-form");
+const chanceBetInput = document.getElementById("chance-bet-input");
+const chanceBetStatus = document.getElementById("chance-bet-status");
 
 let hasBuzzed = false;
+let currentScore = 0;
+let chanceModeActive = false;
 
 // --- Buzzer sound (Web Audio API) ---
 let audioCtx;
@@ -73,6 +79,8 @@ socket.on("join-ok", (data) => {
   joinScreen.classList.add("hidden");
   buzzerScreen.classList.remove("hidden");
   displayName.textContent = data.name;
+  setScore(data.score || 0);
+  setChanceMode(Boolean(data.chanceModeActive));
   hasBuzzed = false;
   setBuzzerActive(true);
   if (data.theme) applyTheme(data.theme);
@@ -84,6 +92,9 @@ socket.on("rejoin-ok", (data) => {
   joinScreen.classList.add("hidden");
   buzzerScreen.classList.remove("hidden");
   displayName.textContent = data.name;
+  setScore(data.score || 0);
+  setChanceMode(Boolean(data.chanceModeActive));
+  setChanceBetStatus(data.chanceBet ? `Submitted: ${data.chanceBet} pts` : "");
   if (data.theme) applyTheme(data.theme);
 
   if (data.hasBuzzed) {
@@ -111,6 +122,22 @@ socket.on("rejoin-failed", () => {
 
 socket.on("theme-update", (theme) => {
   applyTheme(theme);
+});
+
+socket.on("score-update", (data) => {
+  setScore(data?.score || 0);
+});
+
+socket.on("chance-mode-update", (data) => {
+  setChanceMode(Boolean(data?.active));
+});
+
+socket.on("chance-bet-ok", (data) => {
+  setChanceBetStatus(`Submitted: ${data.points} pts`);
+});
+
+socket.on("chance-bet-error", (msg) => {
+  setChanceBetStatus(msg || "Invalid chance bet", true);
 });
 
 socket.on("join-error", (msg) => {
@@ -163,6 +190,24 @@ socket.on("round-reset", () => {
   setBuzzerActive(true);
   buzzStatus.textContent = "";
   buzzBtn.classList.remove("winner");
+  setChanceBetStatus("");
+});
+
+chanceBetForm.addEventListener("submit", (e) => {
+  e.preventDefault();
+  if (!chanceModeActive) return;
+
+  const points = Number(chanceBetInput.value);
+  if (!Number.isInteger(points)) {
+    setChanceBetStatus("Bet must be a whole number", true);
+    return;
+  }
+  if (points < 1 || points > currentScore) {
+    setChanceBetStatus(`Bet must be between 1 and ${currentScore}`, true);
+    return;
+  }
+
+  socket.emit("chance-bet", { points });
 });
 
 // --- Helpers ---
@@ -176,6 +221,46 @@ function setBuzzerActive(active) {
     buzzBtn.classList.add("buzzed");
     buzzBtn.textContent = "BUZZED";
   }
+}
+
+function setScore(score) {
+  currentScore = Math.max(0, Number(score) || 0);
+  playerScoreEl.textContent = `Score: ${currentScore} pts`;
+
+  chanceBetInput.max = String(Math.max(1, currentScore));
+  if (!chanceBetInput.value) {
+    chanceBetInput.value = currentScore > 0 ? "1" : "";
+  }
+
+  if (Number(chanceBetInput.value) > currentScore) {
+    chanceBetInput.value = currentScore > 0 ? String(currentScore) : "";
+  }
+
+  setChanceMode(chanceModeActive);
+}
+
+function setChanceMode(active) {
+  chanceModeActive = active;
+  chanceBetForm.classList.toggle("hidden", !active);
+  chanceBetInput.disabled = !active || currentScore < 1;
+
+  const submitButton = chanceBetForm.querySelector("button[type='submit']");
+  if (submitButton) {
+    submitButton.disabled = !active || currentScore < 1;
+  }
+
+  if (active && currentScore < 1) {
+    setChanceBetStatus("You need at least 1 point to place a bet", true);
+  } else if (!active) {
+    setChanceBetStatus("");
+  } else {
+    setChanceBetStatus("");
+  }
+}
+
+function setChanceBetStatus(message, isError = false) {
+  chanceBetStatus.textContent = message;
+  chanceBetStatus.classList.toggle("error", Boolean(isError && message));
 }
 
 // --- Connection handling ---

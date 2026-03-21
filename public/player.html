@@ -28,6 +28,15 @@
   <!-- Buzzer screen -->
   <div class="player-buzzer hidden" id="buzzer-screen">
     <p class="player-name" id="display-name"></p>
+    <p class="player-score" id="player-score">Score: 0 pts</p>
+
+    <form class="chance-bet hidden" id="chance-bet-form">
+      <label for="chance-bet-input">Chance Bet</label>
+      <input type="number" id="chance-bet-input" min="1" step="1" inputmode="numeric" />
+      <button type="submit" class="btn btn-chance-submit">Submit Bet</button>
+      <p class="chance-bet-status" id="chance-bet-status"></p>
+    </form>
+
     <button id="buzz-btn" class="buzz-button">BUZZ!</button>
     <p class="buzz-status" id="buzz-status"></p>
   </div>
