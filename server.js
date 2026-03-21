@@ -51,6 +51,7 @@ function getLocalIP() {
 
 // --- Static files ---
 app.use(express.static(path.join(__dirname, "public")));
+app.use("/font", express.static(path.join(__dirname, "font")));
 
 // --- Routes ---
 app.get("/", (_req, res) => {

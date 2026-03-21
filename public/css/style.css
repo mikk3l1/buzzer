@@ -1,3 +1,11 @@
+@font-face {
+  font-family: "Linnea";
+  src: url("/font/LinneaFont-Regular.otf") format("opentype");
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
 /* ===== Reset & Base ===== */
 *, *::before, *::after {
   box-sizing: border-box;
@@ -16,7 +24,7 @@
   --text-muted: #8888aa;
   --success: #4ade80;
   --radius: 12px;
-  --font: "Segoe UI", system-ui, -apple-system, sans-serif;
+  --font: "Linnea", "Segoe UI", system-ui, -apple-system, sans-serif;
 }
 
 html, body {
@@ -481,7 +489,7 @@ html, body {
 }
 
 .player-name {
-  font-size: 1.1rem;
+  font-size: 2.5rem;
   color: var(--text-muted);
 }
 
