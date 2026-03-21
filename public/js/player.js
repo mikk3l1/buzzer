@@ -149,12 +149,13 @@ socket.on("chance-mode-update", (data) => {
 });
 
 socket.on("chance-bet-ok", (data) => {
-  chanceAnswerInput.value = data.answer || chanceAnswerInput.value;
+  const confirmedAnswer = String(data.answer || "").trim();
+  chanceAnswerInput.value = confirmedAnswer || chanceAnswerInput.value;
   lastSubmittedChanceBet = {
     points: Number(data.points || 0),
-    answer: String(data.answer || chanceAnswerInput.value || "").trim(),
+    answer: confirmedAnswer || chanceAnswerInput.value.trim(),
   };
-  setChanceBetStatus(`Submitted: ${data.points} pts`);
+  setChanceBetStatus(`Submitted: ${data.points} pts — answer received ✓`);
 });
 
 socket.on("chance-bet-error", (msg) => {
