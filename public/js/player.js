@@ -60,15 +60,18 @@ function vibrate() {
 
 // --- Session persistence ---
 function getSessionToken() {
-  return sessionStorage.getItem("buzzer-session-token");
+  // return sessionStorage.getItem("buzzer-session-token");
+  return localStorage.getItem("buzzer-session-token");
 }
 
 function setSessionToken(token) {
-  sessionStorage.setItem("buzzer-session-token", token);
+  // sessionStorage.setItem("buzzer-session-token", token);
+  localStorage.setItem("buzzer-session-token", token);
 }
 
 function clearSessionToken() {
-  sessionStorage.removeItem("buzzer-session-token");
+  // sessionStorage.removeItem("buzzer-session-token");
+  localStorage.removeItem("buzzer-session-token");
 }
 
 // --- Join ---
@@ -352,6 +355,7 @@ socket.on("disconnect", () => {
 
 socket.on("connect", () => {
   // On connect (including after reload), try to rejoin with stored token
+  buzzStatus.textContent = "";
   const token = getSessionToken();
   if (token) {
     socket.emit("player-rejoin", { token });

@@ -24,7 +24,7 @@ let chanceModeActive = false;
 let nextSoundIndex = 0; // cycles through available buzz sounds
 const SOUND_COUNT = 5;
 
-const SESSION_GRACE_MS = 60_000; // 60 seconds to reconnect after disconnect
+const SESSION_GRACE_MS = 10 * 60_000; // 10 * 60 seconds (10 min) to reconnect after disconnect
 
 // --- Room code ---
 function generateRoomCode() {
