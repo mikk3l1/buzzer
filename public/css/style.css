@@ -516,12 +516,16 @@ body {
   font-size: 3rem;
   font-weight: bold;
   color: var(--text-muted);
+  position: relative;
+  z-index: 5;
 }
 
 .player-score {
   font-size: 2.2rem;
   font-weight: bold;
   color: #d584b7;
+  position: relative;
+  z-index: 5;
   /* text-shadow:
     -1px -1px 0 #262626,
     1px -1px 0 #262626,
@@ -715,6 +719,8 @@ body {
   font-weight: 600;
   min-height: 2em;
   text-align: center;
+  position: relative;
+  z-index: 5;
 }
 
 /* =========================================
@@ -888,26 +894,233 @@ body {
   box-shadow: 0 4px 20px rgba(245, 200, 66, 0.2);
 }
 
+/* --- Easter Egg Buzzer --- */
 [data-theme="easter"] .buzz-button {
-  background: radial-gradient(circle at 35% 35%, #f5a3d3, #e88bc4 60%, #c964a8);
+  width: min(70vw, 240px);
+  height: min(90vw, 310px);
+  border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%;
+  background: transparent;
+  box-shadow: none;
+  position: relative;
+  overflow: visible;
+  transition: transform 0.15s ease, box-shadow 0.2s ease;
 }
 
-[data-theme="easter"] .buzz-button.buzzed {
-  background: radial-gradient(circle at 35% 35%, #d5c8dc, #b8a8c2 60%, #998aa6);
-  box-shadow:
-    0 4px 10px rgba(0, 0, 0, 0.1),
-    0 0 0 6px var(--surface-light),
-    0 0 0 8px #b8a8c2;
-  color: #8a7399;
+/* The two shell halves cover the button and form the egg visually */
+[data-theme="easter"] .egg-shell {
+  position: absolute;
+  left: 0;
+  right: 0;
+  width: 100%;
+  height: 50%;
+  pointer-events: none;
+  z-index: 3;
+  transition: transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1),
+              clip-path 0.4s ease,
+              opacity 0.4s ease;
 }
 
-[data-theme="easter"] .buzz-button.winner {
-  background: radial-gradient(circle at 35% 35%, #ffe88a, #f5c842 60%, #d4a420);
+[data-theme="easter"] .egg-shell-top {
+  top: 0;
+  border-radius: 50% 50% 0 0 / 100% 100% 0 0;
+  background:
+    repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 18px,
+      rgba(255, 255, 255, 0.25) 18px,
+      rgba(255, 255, 255, 0.25) 22px,
+      transparent 22px,
+      transparent 28px,
+      rgba(186, 130, 214, 0.2) 28px,
+      rgba(186, 130, 214, 0.2) 30px
+    ),
+    radial-gradient(circle at 35% 25%, #f5a3d3, #e88bc4 60%, #c964a8);
   box-shadow:
-    0 8px 40px rgba(245, 200, 66, 0.4),
-    0 0 0 6px var(--surface-light),
-    0 0 0 8px var(--accent);
-  color: #3d2c4e;
+    0 -4px 20px var(--primary-glow),
+    0 0 0 3px rgba(255, 255, 255, 0.2);
+}
+
+[data-theme="easter"] .egg-shell-bottom {
+  bottom: 0;
+  border-radius: 0 0 50% 50% / 0 0 80% 80%;
+  background:
+    repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 18px,
+      rgba(255, 255, 255, 0.25) 18px,
+      rgba(255, 255, 255, 0.25) 22px,
+      transparent 22px,
+      transparent 28px,
+      rgba(186, 130, 214, 0.2) 28px,
+      rgba(186, 130, 214, 0.2) 30px
+    ),
+    radial-gradient(circle at 35% 75%, #e88bc4, #c964a8 60%, #a84890);
+  box-shadow:
+    0 4px 20px var(--primary-glow),
+    0 0 0 3px rgba(255, 255, 255, 0.2);
+}
+
+/* Content inside the egg (behind the shells) */
+[data-theme="easter"] .buzz-button .egg-label {
+  position: relative;
+  z-index: 4;
+  display: block;
+  text-shadow: 0 2px 6px rgba(150, 50, 100, 0.3);
+}
+
+[data-theme="easter"] .buzz-button .egg-placement {
+  position: relative;
+  z-index: 2;
+  font-size: 2rem;
+  font-weight: 800;
+}
+
+[data-theme="easter"] .buzz-button .egg-placement.hidden {
+  display: none;
+}
+
+[data-theme="easter"] .buzz-button .egg-placement.egg-reveal {
+  animation: egg-reveal 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+/* --- Egg opens: shells split apart --- */
+[data-theme="easter"] .buzz-button.egg-open .egg-shell-top {
+  transform: translateY(-45%) rotate(-8deg);
+  clip-path: polygon(
+    0% 0%, 100% 0%, 100% 85%,
+    92% 90%, 85% 80%, 78% 92%,
+    70% 82%, 62% 95%, 55% 80%,
+    48% 90%, 40% 78%, 32% 92%,
+    25% 82%, 18% 95%, 10% 82%,
+    0% 90%
+  );
+  opacity: 0.6;
+}
+
+[data-theme="easter"] .buzz-button.egg-open .egg-shell-bottom {
+  transform: translateY(30%) rotate(5deg);
+  clip-path: polygon(
+    0% 10%, 10% 18%, 18% 5%, 25% 18%,
+    32% 8%, 40% 22%, 48% 10%,
+    55% 20%, 62% 5%, 70% 18%,
+    78% 8%, 85% 20%, 92% 10%,
+    100% 15%, 100% 100%, 0% 100%
+  );
+  opacity: 0.7;
+}
+
+/* Inner egg background revealed when open */
+[data-theme="easter"] .buzz-button.egg-open {
+  background: radial-gradient(
+    circle at 50% 50%,
+    #fff8e1 0%,
+    #fff3c4 40%,
+    #ffe680 100%
+  );
+}
+
+[data-theme="easter"] .buzz-button.buzzed:not(.egg-open) {
+  background: transparent;
+}
+
+[data-theme="easter"] .buzz-button.buzzed .egg-shell-top {
+  background:
+    repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 18px,
+      rgba(255, 255, 255, 0.15) 18px,
+      rgba(255, 255, 255, 0.15) 22px
+    ),
+    radial-gradient(circle at 35% 25%, #d5c8dc, #b8a8c2 60%, #998aa6);
+}
+
+[data-theme="easter"] .buzz-button.buzzed .egg-shell-bottom {
+  background:
+    repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 18px,
+      rgba(255, 255, 255, 0.15) 18px,
+      rgba(255, 255, 255, 0.15) 22px
+    ),
+    radial-gradient(circle at 35% 75%, #b8a8c2, #998aa6 60%, #7d6f8a);
+}
+
+/* Winner egg */
+[data-theme="easter"] .buzz-button.winner .egg-shell-top {
+  background:
+    repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 18px,
+      rgba(255, 255, 255, 0.3) 18px,
+      rgba(255, 255, 255, 0.3) 22px
+    ),
+    radial-gradient(circle at 35% 25%, #ffe88a, #f5c842 60%, #d4a420);
+}
+
+[data-theme="easter"] .buzz-button.winner .egg-shell-bottom {
+  background:
+    repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 18px,
+      rgba(255, 255, 255, 0.3) 18px,
+      rgba(255, 255, 255, 0.3) 22px
+    ),
+    radial-gradient(circle at 35% 75%, #f5c842, #d4a420 60%, #b8901a);
+}
+
+[data-theme="easter"] .buzz-button.winner.egg-open {
+  background: radial-gradient(
+    circle at 50% 50%,
+    #fffde7 0%,
+    #fff9c4 40%,
+    #ffe082 100%
+  );
+  box-shadow:
+    0 0 60px rgba(245, 200, 66, 0.4);
+  animation: pulse 0.6s ease-in-out 3;
+}
+
+/* Hide shells on non-easter themes */
+.egg-shell {
+  display: none;
+}
+
+[data-theme="easter"] .egg-shell {
+  display: block;
+}
+
+@keyframes egg-reveal {
+  0% {
+    transform: scale(0);
+    opacity: 0;
+  }
+  60% {
+    transform: scale(1.25);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+/* Accessibility: reduce motion */
+@media (prefers-reduced-motion: reduce) {
+  [data-theme="easter"] .egg-shell {
+    transition: none;
+  }
+
+  [data-theme="easter"] .buzz-button .egg-placement.egg-reveal {
+    animation: none;
+    opacity: 1;
+    transform: scale(1);
+  }
 }
 
 /* Neon — electric dark */

@@ -2,10 +2,20 @@ const socket = io();
 
 // --- Theme ---
 function applyTheme(theme) {
+  const wasBuzzed = hasBuzzed;
   if (theme && theme !== "default") {
     document.documentElement.setAttribute("data-theme", theme);
   } else {
     document.documentElement.removeAttribute("data-theme");
+  }
+  // Reset egg visual state on theme change
+  if (typeof resetEggState === "function") {
+    if (!wasBuzzed) {
+      resetEggState();
+    } else {
+      // Buzzed state — if switching TO easter, show static placement
+      eggLabel?.classList.add("hidden");
+    }
   }
 }
 
@@ -26,6 +36,10 @@ const chanceAnswerLabel = document.getElementById("chance-answer-label");
 const chanceAnswerInput = document.getElementById("chance-answer-input");
 const chanceSubmitBtn = document.getElementById("chance-submit-btn");
 const chanceBetStatus = document.getElementById("chance-bet-status");
+const eggLabel = document.querySelector(".egg-label");
+const eggPlacement = document.querySelector(".egg-placement");
+const eggShellTop = document.querySelector(".egg-shell-top");
+const eggShellBottom = document.querySelector(".egg-shell-bottom");
 
 let hasBuzzed = false;
 let currentScore = 0;
@@ -137,6 +151,7 @@ socket.on("rejoin-ok", (data) => {
     const ordinal = data.position === 1 ? "1st" : data.position === 2 ? "2nd" : data.position === 3 ? "3rd" : `${data.position}th`;
     buzzStatus.textContent = `${medal} You were ${ordinal}!`;
     if (data.position === 1) buzzBtn.classList.add("winner");
+    if (isEasterTheme()) showEggPlacementStatic(data.position);
   } else {
     hasBuzzed = false;
     setBuzzerActive(true);
@@ -222,6 +237,10 @@ socket.on("buzz-ack", (data) => {
   hasBuzzed = true;
   setBuzzerActive(false);
 
+  if (isEasterTheme()) {
+    openEgg(data.position);
+  }
+
   const medal = data.position === 1 ? "🥇" : data.position === 2 ? "🥈" : data.position === 3 ? "🥉" : "💩";
   buzzStatus.textContent = `${medal} You were ${data.position === 1 ? "1st" : data.position === 2 ? "2nd" : data.position === 3 ? "3rd" : `${data.position}th`}!`;
 
@@ -236,6 +255,7 @@ socket.on("round-state", (state) => {
     setBuzzerActive(true);
     buzzStatus.textContent = "";
     buzzBtn.classList.remove("winner");
+    resetEggState();
   } else {
     hasBuzzed = true;
     setBuzzerActive(false);
@@ -248,6 +268,7 @@ socket.on("round-reset", () => {
   setBuzzerActive(true);
   buzzStatus.textContent = "";
   buzzBtn.classList.remove("winner");
+  resetEggState();
   setChanceBetStatus("");
 });
 
@@ -273,16 +294,57 @@ chanceLockBtn.addEventListener("click", () => {
   socket.emit("chance-bet-lock", { points });
 });
 
+// --- Easter egg helpers ---
+function isEasterTheme() {
+  return document.documentElement.getAttribute("data-theme") === "easter";
+}
+
+function openEgg(position) {
+  buzzBtn.classList.add("egg-open");
+  setTimeout(() => {
+    const medal = position === 1 ? "\u{1F947}" : position === 2 ? "\u{1F948}" : position === 3 ? "\u{1F949}" : "\u{1F4A9}";
+    const ordinal = position === 1 ? "1st" : position === 2 ? "2nd" : position === 3 ? "3rd" : `${position}th`;
+    eggLabel.classList.add("hidden");
+    eggPlacement.textContent = `${medal}\n${ordinal}!`;
+    eggPlacement.style.whiteSpace = "pre-line";
+    eggPlacement.classList.remove("hidden");
+    eggPlacement.classList.remove("egg-reveal");
+    void eggPlacement.offsetWidth;
+    eggPlacement.classList.add("egg-reveal");
+  }, 250);
+}
+
+function showEggPlacementStatic(position) {
+  buzzBtn.classList.add("egg-open");
+  const medal = position === 1 ? "\u{1F947}" : position === 2 ? "\u{1F948}" : position === 3 ? "\u{1F949}" : "\u{1F4A9}";
+  const ordinal = position === 1 ? "1st" : position === 2 ? "2nd" : position === 3 ? "3rd" : `${position}th`;
+  eggLabel.classList.add("hidden");
+  eggPlacement.textContent = `${medal}\n${ordinal}!`;
+  eggPlacement.style.whiteSpace = "pre-line";
+  eggPlacement.classList.remove("hidden");
+  eggPlacement.classList.remove("egg-reveal");
+}
+
+function resetEggState() {
+  buzzBtn.classList.remove("egg-open");
+  eggLabel.classList.remove("hidden");
+  eggPlacement.classList.add("hidden");
+  eggPlacement.classList.remove("egg-reveal");
+}
+
 // --- Helpers ---
 function setBuzzerActive(active) {
   if (active) {
     buzzBtn.disabled = false;
     buzzBtn.classList.remove("buzzed");
-    buzzBtn.textContent = "BUZZ!";
+    eggLabel.textContent = "BUZZ!";
+    resetEggState();
   } else {
     buzzBtn.disabled = true;
     buzzBtn.classList.add("buzzed");
-    buzzBtn.textContent = "BUZZED";
+    if (!isEasterTheme()) {
+      eggLabel.textContent = "BUZZED";
+    }
   }
 }
 
