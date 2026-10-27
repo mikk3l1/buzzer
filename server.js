@@ -22,7 +22,6 @@ let roundActive = true;
 let currentTheme = "default";
 let chanceModeActive = false;
 let nextSoundIndex = 0; // cycles through available buzz sounds
-const SOUND_COUNT = 5;
 
 const SESSION_GRACE_MS = 10 * 60_000; // 10 * 60 seconds (10 min) to reconnect after disconnect
 
@@ -207,7 +206,7 @@ io.on("connection", async (socket) => {
       qrDataUrl = await QRCode.toDataURL(joinUrl, {
         width: 300,
         margin: 2,
-        color: { dark: "#ffffff", light: "#00000000" },
+        color: { dark: "#1a1a2e", light: "#ffffff" },
       });
     } catch {
       qrDataUrl = null;
@@ -279,8 +278,7 @@ io.on("connection", async (socket) => {
     }
 
     const sessionToken = crypto.randomBytes(16).toString("hex");
-    const soundIndex = nextSoundIndex % SOUND_COUNT;
-    nextSoundIndex++;
+    const soundIndex = nextSoundIndex++;
 
     players.set(socket.id, { name, sessionToken, joinedAt: Date.now() });
     sessions.set(sessionToken, { name, socketId: socket.id, disconnectTimer: null, soundIndex });
@@ -530,7 +528,7 @@ io.on("connection", async (socket) => {
 
   // Host changes theme
   socket.on("theme-change", (theme) => {
-    const allowed = ["default", "easter", "neon", "ocean"];
+    const allowed = ["default", "easter", "neon", "ocean", "halloween"];
     if (!allowed.includes(theme)) return;
     currentTheme = theme;
     io.emit("theme-update", currentTheme);

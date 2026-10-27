@@ -1,6 +1,10 @@
 /music
 sounds
 *.mp3
+!sounds/
+!sounds/halloween-sounds/
+!sounds/halloween-sounds/README.md
+!sounds/halloween-sounds/*.mp3
 
 # Created by https://www.toptal.com/developers/gitignore/api/node
 # Edit at https://www.toptal.com/developers/gitignore?templates=node

@@ -34,18 +34,48 @@ let lastSubmittedChanceBet = null;
 // chanceBetStep: null | "points" | "answer" | "done"
 let chanceBetStep = null;
 
-// --- Buzzer sound (one fixed animal per player) ---
-const BUZZ_SOUNDS = [
+// --- Buzz sounds (one fixed sound per player, selected by theme) ---
+const DEFAULT_BUZZ_SOUNDS = [
   "/sounds/chicken.mp3",
   "/sounds/cow-moo.mp3",
   "/sounds/horse-neigh.mp3",
   "/sounds/Lamb.mp3",
   "/sounds/Sheep.mp3",
 ];
-let myBuzzSound = null;
+const HALLOWEEN_BUZZ_SOUNDS = [
+  "alien-howl.mp3",
+  "cinematic-glitch-fear.mp3",
+  "creaky-old-door.mp3",
+  "creepy-malicious-laughter.mp3",
+  "eerie-sudden-shock.mp3",
+  "evil-kids-laugh-made-with-voicemod.mp3",
+  "evil-laugh-1.mp3",
+  "funny-dramatic-gasp.mp3",
+  "ghost-horror-sound.mp3",
+  "ghostly-tone.mp3",
+  "haunted-door-opening-1.mp3",
+  "horror-scary-human-whisper-ghost-05.mp3",
+  "howling-in-the-distance.mp3",
+  "knocking.mp3",
+  "old-spooky-door.mp3",
+  "owl-hoot-02.mp3",
+  "scary-bells.mp3",
+  "scary-string-tension.mp3",
+  "scary-transition.mp3",
+  "scream-with-echo.mp3",
+  "screams-of-agony.mp3",
+  "shock-gasp-female.mp3",
+  "skeleton-spooky-noise.mp3",
+  "supernatural-scream.mp3",
+  "woman-gasp-for-air.mp3",
+].map((filename) => `/sounds/halloween-sounds/${filename}`);
+let mySoundIndex = 0;
 let buzzAudio = null;
 function playBuzzSound() {
-  const src = myBuzzSound || BUZZ_SOUNDS[0];
+  const soundList = document.documentElement.dataset.theme === "halloween"
+    ? HALLOWEEN_BUZZ_SOUNDS
+    : DEFAULT_BUZZ_SOUNDS;
+  const src = soundList[mySoundIndex % soundList.length];
   if (buzzAudio) { buzzAudio.pause(); buzzAudio.currentTime = 0; }
   buzzAudio = new Audio(src);
   buzzAudio.play().catch(() => {});
@@ -96,7 +126,7 @@ socket.on("join-ok", (data) => {
   setBuzzerActive(true);
   if (data.theme) applyTheme(data.theme);
   if (data.sessionToken) setSessionToken(data.sessionToken);
-  if (data.soundIndex != null) myBuzzSound = BUZZ_SOUNDS[data.soundIndex % BUZZ_SOUNDS.length];
+  if (data.soundIndex != null) mySoundIndex = data.soundIndex;
 });
 
 // --- Rejoin after reload ---
@@ -107,7 +137,7 @@ socket.on("rejoin-ok", (data) => {
   setScore(data.score || 0);
   chanceBetStep = null;
   setChanceMode(Boolean(data.chanceModeActive));
-  if (data.soundIndex != null) myBuzzSound = BUZZ_SOUNDS[data.soundIndex % BUZZ_SOUNDS.length];
+  if (data.soundIndex != null) mySoundIndex = data.soundIndex;
   if (data.chanceBet) {
     chanceBetInput.value = String(data.chanceBet.points || 1);
     lastSubmittedChanceBet = {

@@ -109,6 +109,8 @@ body {
   width: 140px;
   height: 140px;
   display: none;
+  padding: 8px;
+  background: #fff;
   border-radius: 8px;
 }
 
@@ -770,13 +772,6 @@ body {
   background: url("/images/easter-bg.svg") center/cover no-repeat fixed;
 }
 
-/* QR code needs a dark background on light themes */
-[data-theme="easter"] .qr-section img {
-  background: #3d2c4e;
-  padding: 8px;
-  border-radius: 12px;
-}
-
 /* Easter floating decorations */
 [data-theme="easter"] .host-body::before {
   content: "🐣";
@@ -978,4 +973,108 @@ body {
     0 0 0 6px var(--surface-light),
     0 0 0 8px var(--accent);
   color: #0b1628;
+}
+
+/* Halloween — haunted night */
+[data-theme="halloween"] {
+  --bg: #100b16;
+  --surface: #21172b;
+  --surface-light: #382541;
+  --primary: #ff7518;
+  --primary-glow: rgba(255, 117, 24, 0.45);
+  --accent: #c3f56a;
+  --text: #fff3e0;
+  --text-muted: #b7a3c2;
+  --success: #c3f56a;
+}
+
+[data-theme="halloween"] body {
+  background:
+    radial-gradient(ellipse at 50% 110%, rgba(116, 35, 122, 0.35), transparent 55%),
+    radial-gradient(ellipse at 10% 0%, rgba(255, 117, 24, 0.12), transparent 40%),
+    var(--bg);
+}
+
+[data-theme="halloween"] .host-body::before {
+  content: "🦇";
+  position: fixed;
+  top: 16px;
+  left: 20px;
+  font-size: 2rem;
+  animation: halloween-float 3s ease-in-out infinite;
+  pointer-events: none;
+  z-index: 10;
+}
+
+[data-theme="halloween"] .host-body::after {
+  content: "🎃";
+  position: fixed;
+  right: 18px;
+  bottom: 14px;
+  font-size: 2.5rem;
+  animation: halloween-float 3.5s ease-in-out infinite 0.4s;
+  pointer-events: none;
+  z-index: 10;
+}
+
+[data-theme="halloween"] .player-body::before,
+[data-theme="halloween"] .player-body::after {
+  position: fixed;
+  top: 18px;
+  font-size: 2rem;
+  pointer-events: none;
+}
+
+[data-theme="halloween"] .player-body::before {
+  content: "🦇";
+  left: 18px;
+}
+
+[data-theme="halloween"] .player-body::after {
+  content: "🕸️";
+  right: 18px;
+}
+
+[data-theme="halloween"] .buzz-button {
+  background: radial-gradient(circle at 35% 35%, #ffad52, #ff7518 60%, #b83d0b);
+}
+
+[data-theme="halloween"] .buzz-button.buzzed {
+  background: radial-gradient(circle at 35% 35%, #62546b, #3c3045 60%, #261d2d);
+  box-shadow:
+    0 4px 10px rgba(0, 0, 0, 0.4),
+    0 0 0 6px var(--surface-light),
+    0 0 0 8px #62546b;
+  color: #a998b2;
+}
+
+[data-theme="halloween"] .buzz-button.winner {
+  background: radial-gradient(circle at 35% 35%, #e0ff9a, #c3f56a 60%, #82b932);
+  box-shadow:
+    0 8px 40px rgba(195, 245, 106, 0.4),
+    0 0 0 6px var(--surface-light),
+    0 0 0 8px var(--accent);
+  color: #21172b;
+}
+
+[data-theme="halloween"] .buzz-card.winner {
+  background: linear-gradient(135deg, var(--surface), #38251f);
+  box-shadow: 0 4px 20px rgba(255, 117, 24, 0.18);
+}
+
+@keyframes halloween-float {
+  0%, 100% {
+    transform: translateY(0) rotate(-4deg);
+  }
+
+  50% {
+    transform: translateY(-8px) rotate(4deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-theme="halloween"] .host-body::before,
+  [data-theme="halloween"] .host-body::after {
+    animation: none;
+  }
 }

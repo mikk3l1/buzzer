@@ -7,12 +7,20 @@ function applyTheme(theme) {
   } else {
     document.documentElement.removeAttribute("data-theme");
   }
+  hostThemeIcon.textContent = {
+    default: "🐰",
+    easter: "🐰",
+    neon: "⚡",
+    ocean: "🌊",
+    halloween: "🎃",
+  }[theme] || "🐰";
 }
 
 // --- DOM refs ---
 const qrImg = document.getElementById("qr-code");
 const joinUrlEl = document.getElementById("join-url");
 const roomCodeEl = document.getElementById("room-code");
+const hostThemeIcon = document.getElementById("host-theme-icon");
 const btnReset = document.getElementById("btn-reset");
 const buzzResultsEl = document.getElementById("buzz-results");
 const waitingMessage = document.getElementById("waiting-message");
@@ -29,6 +37,7 @@ const scoreSelection = new Map();
 let latestBuzzResults = [];
 let chanceModeActive = false;
 let latestChanceBets = [];
+let latestPlayers = [];
 
 // --- Join as host ---
 socket.on("connect", () => {
@@ -59,6 +68,7 @@ socket.on("player-list", (list) => renderPlayers(list));
 const SOUND_EMOJIS = ["🐔", "🐄", "🐴", "🐑", "🐏"];
 
 function renderPlayers(list) {
+  latestPlayers = list;
   playerCountEl.textContent = list.length;
   if (list.length === 0) {
     playerListEl.innerHTML = '<p class="no-players">No players connected yet</p>';
@@ -66,7 +76,9 @@ function renderPlayers(list) {
   }
   playerListEl.innerHTML = list
     .map((p) => {
-      const emoji = SOUND_EMOJIS[p.soundIndex % SOUND_EMOJIS.length];
+      const emoji = document.documentElement.dataset.theme === "halloween"
+        ? "🎃"
+        : SOUND_EMOJIS[p.soundIndex % SOUND_EMOJIS.length];
       return `<div class="player-chip">${emoji} ${escapeHtml(p.name)}</div>`;
     })
     .join("");
@@ -205,6 +217,7 @@ themeSelect.addEventListener("change", () => {
 socket.on("theme-update", (theme) => {
   themeSelect.value = theme;
   applyTheme(theme);
+  renderPlayers(latestPlayers);
 });
 
 function setChanceMode(active) {
