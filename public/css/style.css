@@ -148,6 +148,34 @@ body {
   box-shadow: 0 6px 30px var(--primary-glow);
 }
 
+.btn-unlock-buzzers {
+  background: rgba(74, 222, 128, 0.18);
+  color: var(--text);
+  border: 1px solid rgba(74, 222, 128, 0.4);
+  padding: 14px 24px;
+}
+
+.btn-unlock-buzzers:disabled {
+  opacity: 0.65;
+  cursor: default;
+}
+
+.btn-buzzer-gate {
+  background: var(--surface-light);
+  color: var(--text);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  padding: 14px 24px;
+}
+
+.btn-buzzer-gate.active {
+  border-color: rgba(255, 117, 24, 0.55);
+}
+
+.buzzer-gate-state {
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
 .btn-reset-scores {
   background: var(--surface-light);
   color: var(--text);

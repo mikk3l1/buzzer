@@ -18,7 +18,8 @@ const sessions = new Map(); // sessionToken -> { name, socketId, disconnectTimer
 const scores = new Map(); // sessionToken -> { name, score, createdAt }
 const chanceBets = new Map(); // sessionToken -> { points, answer }
 let buzzOrder = []; // [{ sessionToken, name, timestamp }]
-let roundActive = true;
+let buzzerGateEnabled = true;
+let buzzersUnlocked = false;
 let currentTheme = "default";
 let chanceModeActive = false;
 let nextSoundIndex = 0; // cycles through available buzz sounds
@@ -150,6 +151,35 @@ function emitPlayerScore(sessionToken) {
   });
 }
 
+function areBuzzersOpen() {
+  return !buzzerGateEnabled || buzzersUnlocked;
+}
+
+function getPlayerRoundState(sessionToken) {
+  const hasBuzzed = buzzOrder.some((b) => b.sessionToken === sessionToken);
+  const open = areBuzzersOpen();
+  return {
+    active: open && !hasBuzzed,
+    hasBuzzed,
+    gateEnabled: buzzerGateEnabled,
+    open,
+  };
+}
+
+function emitPlayerRoundStates() {
+  for (const [socketId, player] of players) {
+    io.to(socketId).emit("round-state", getPlayerRoundState(player.sessionToken));
+  }
+}
+
+function emitBuzzerGateState() {
+  io.to("host-room").emit("buzzer-gate-update", {
+    enabled: buzzerGateEnabled,
+    open: areBuzzersOpen(),
+  });
+  emitPlayerRoundStates();
+}
+
 function emitAllPlayerScores() {
   for (const token of sessions.keys()) {
     emitPlayerScore(token);
@@ -221,7 +251,8 @@ io.on("connection", async (socket) => {
       leaderboard: getLeaderboard(),
       chanceModeActive,
       chanceBets: getChanceBetsForHost(),
-      roundActive,
+      buzzerGateEnabled,
+      buzzersOpen: areBuzzersOpen(),
       theme: currentTheme,
     });
   });
@@ -263,7 +294,7 @@ io.on("connection", async (socket) => {
       soundIndex: session.soundIndex ?? 0,
     });
 
-    socket.emit("round-state", { active: roundActive && !alreadyBuzzed });
+    socket.emit("round-state", getPlayerRoundState(token));
     io.to("host-room").emit("player-list", getPlayerList());
     emitLeaderboard();
     emitChanceMode();
@@ -298,15 +329,15 @@ io.on("connection", async (socket) => {
     emitChanceMode();
 
     const alreadyBuzzed = buzzOrder.some((b) => b.sessionToken === sessionToken);
-    socket.emit("round-state", { active: roundActive && !alreadyBuzzed });
+    socket.emit("round-state", getPlayerRoundState(sessionToken));
   });
 
   // Player buzzes
   socket.on("buzz", () => {
-    if (!roundActive) return;
     if (!players.has(socket.id)) return;
 
     const player = players.get(socket.id);
+    if (!areBuzzersOpen()) return;
     if (buzzOrder.some((b) => b.sessionToken === player.sessionToken)) return;
 
     const entry = {
@@ -319,7 +350,7 @@ io.on("connection", async (socket) => {
     const position = buzzOrder.length;
 
     socket.emit("buzz-ack", { position });
-    socket.emit("round-state", { active: false });
+    socket.emit("round-state", getPlayerRoundState(player.sessionToken));
 
     const results = getBuzzResults();
     io.to("host-room").emit("buzz-results", results);
@@ -502,12 +533,28 @@ io.on("connection", async (socket) => {
   // Host resets round
   socket.on("reset-round", () => {
     buzzOrder = [];
-    roundActive = true;
+    buzzersUnlocked = !buzzerGateEnabled;
     chanceModeActive = false;
     chanceBets.clear();
     io.emit("round-reset");
+    emitBuzzerGateState();
     io.to("host-room").emit("buzz-results", getBuzzResults());
     emitChanceMode();
+  });
+
+  socket.on("unlock-buzzers", () => {
+    if (!socket.data.isHost || !buzzerGateEnabled || buzzersUnlocked) return;
+
+    buzzersUnlocked = true;
+    emitBuzzerGateState();
+  });
+
+  socket.on("set-buzzer-gate", (data) => {
+    if (!socket.data.isHost) return;
+
+    buzzerGateEnabled = Boolean(data?.enabled);
+    buzzersUnlocked = !buzzerGateEnabled;
+    emitBuzzerGateState();
   });
 
   // Host resets persistent scores/leaderboard

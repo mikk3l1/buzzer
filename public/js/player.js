@@ -123,7 +123,7 @@ socket.on("join-ok", (data) => {
   lastSubmittedChanceBet = null;
   chanceAnswerInput.value = "";
   hasBuzzed = false;
-  setBuzzerActive(true);
+  setBuzzerActive(false, "LOCKED");
   if (data.theme) applyTheme(data.theme);
   if (data.sessionToken) setSessionToken(data.sessionToken);
   if (data.soundIndex != null) mySoundIndex = data.soundIndex;
@@ -169,7 +169,7 @@ socket.on("rejoin-ok", (data) => {
     if (data.position === 1) buzzBtn.classList.add("winner");
   } else {
     hasBuzzed = false;
-    setBuzzerActive(true);
+    setBuzzerActive(false, "LOCKED");
     buzzStatus.textContent = "";
   }
 });
@@ -266,16 +266,23 @@ socket.on("round-state", (state) => {
     setBuzzerActive(true);
     buzzStatus.textContent = "";
     buzzBtn.classList.remove("winner");
-  } else {
+  } else if (state.hasBuzzed) {
     hasBuzzed = true;
     setBuzzerActive(false);
+  } else {
+    hasBuzzed = false;
+    setBuzzerActive(false, "LOCKED");
+    buzzStatus.textContent = state.gateEnabled && !state.open
+      ? "Waiting for the host to unlock buzzers"
+      : "";
+    buzzBtn.classList.remove("winner");
   }
 });
 
 // --- Round reset ---
 socket.on("round-reset", () => {
   hasBuzzed = false;
-  setBuzzerActive(true);
+  setBuzzerActive(false, "LOCKED");
   buzzStatus.textContent = "";
   buzzBtn.classList.remove("winner");
   setChanceBetStatus("");
@@ -304,7 +311,7 @@ chanceLockBtn.addEventListener("click", () => {
 });
 
 // --- Helpers ---
-function setBuzzerActive(active) {
+function setBuzzerActive(active, inactiveLabel = "BUZZED") {
   if (active) {
     buzzBtn.disabled = false;
     buzzBtn.classList.remove("buzzed");
@@ -312,7 +319,7 @@ function setBuzzerActive(active) {
   } else {
     buzzBtn.disabled = true;
     buzzBtn.classList.add("buzzed");
-    buzzBtn.textContent = "BUZZED";
+    buzzBtn.textContent = inactiveLabel;
   }
 }
 

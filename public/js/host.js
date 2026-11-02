@@ -22,6 +22,9 @@ const joinUrlEl = document.getElementById("join-url");
 const roomCodeEl = document.getElementById("room-code");
 const hostThemeIcon = document.getElementById("host-theme-icon");
 const btnReset = document.getElementById("btn-reset");
+const btnUnlockBuzzers = document.getElementById("btn-unlock-buzzers");
+const btnBuzzerGate = document.getElementById("btn-buzzer-gate");
+const buzzerGateStateEl = document.getElementById("buzzer-gate-state");
 const buzzResultsEl = document.getElementById("buzz-results");
 const waitingMessage = document.getElementById("waiting-message");
 const playerListEl = document.getElementById("player-list");
@@ -38,6 +41,8 @@ let latestBuzzResults = [];
 let chanceModeActive = false;
 let latestChanceBets = [];
 let latestPlayers = [];
+let buzzerGateEnabled = true;
+let buzzersOpen = false;
 
 // --- Join as host ---
 socket.on("connect", () => {
@@ -60,6 +65,10 @@ socket.on("host-info", (info) => {
   renderLeaderboard(info.leaderboard || []);
   setChanceMode(Boolean(info.chanceModeActive));
   renderChanceBets(info.chanceBets || []);
+  setBuzzerGateState({
+    enabled: info.buzzerGateEnabled,
+    open: info.buzzersOpen,
+  });
 });
 
 // --- Player list ---
@@ -195,6 +204,16 @@ btnReset.addEventListener("click", () => {
   socket.emit("reset-round");
 });
 
+btnUnlockBuzzers.addEventListener("click", () => {
+  socket.emit("unlock-buzzers");
+});
+
+btnBuzzerGate.addEventListener("click", () => {
+  socket.emit("set-buzzer-gate", { enabled: !buzzerGateEnabled });
+});
+
+socket.on("buzzer-gate-update", (state) => setBuzzerGateState(state));
+
 socket.on("round-reset", () => {
   // Visual feedback handled by buzz-results update
   scoreSelection.clear();
@@ -225,6 +244,18 @@ function setChanceMode(active) {
   chanceStateEl.textContent = `Chance: ${active ? "On" : "Off"}`;
   btnChanceToggle.textContent = active ? "Disable Chance" : "Enable Chance";
   btnChanceToggle.classList.toggle("active", active);
+}
+
+function setBuzzerGateState(state) {
+  buzzerGateEnabled = Boolean(state.enabled);
+  buzzersOpen = Boolean(state.open);
+  btnUnlockBuzzers.disabled = !buzzerGateEnabled || buzzersOpen;
+  btnUnlockBuzzers.textContent = buzzersOpen ? "Buzzers Open" : "Unlock Buzzers";
+  btnBuzzerGate.textContent = buzzerGateEnabled ? "Disable Gate" : "Enable Gate";
+  btnBuzzerGate.classList.toggle("active", buzzerGateEnabled);
+  buzzerGateStateEl.textContent = buzzerGateEnabled
+    ? `Gate: On · Buzzers ${buzzersOpen ? "open" : "locked"}`
+    : "Gate: Off · Buzzers open";
 }
 
 function renderChanceBets(bets) {
