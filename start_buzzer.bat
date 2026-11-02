@@ -1,3 +1,3 @@
 @echo off
-cd /d "c:\Users\Mikkel\Desktop\LocalCode\buzzer"
+cd /d "%~dp0"
 npm start
